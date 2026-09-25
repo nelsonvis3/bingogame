@@ -1921,64 +1921,52 @@
 
       function bindConn(c) {
         net.conn = c;
-        net.connected = true;
+
         let down = false;
+
         const die = () => {
           if (net.conn !== c || down) return;
+
           down = true;
           handleNetDown();
         };
-        c.on("data", onNetMsg);
-        c.on("close", die);
-        c.on("error", die);
-      }
-      function handleNetDown() {
-        net.connected = false;
-        if (S && !S.over && S.mode === "online") {
-          openModal(`<h3>Conexión perdida</h3>
-      <p class="big">${S.opp.name} se ha desconectado.</p>
-      <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
-          $("#mLeave2").onclick = () => {
-            closeModal();
-            netReset();
-            goLobby();
-          };
-        } else if (!S) {
-          netShowErr("Se perdió la conexión.");
-        }
+
+        c.on("open", () => {
+          if (net.conn !== c || down) return;
+
+          net.connected = true;
+
+          console.log("Conexión P2P abierta");
+
+          if (!net.isHost) {
+            netSend({
+              t: "hello",
+              name: net.myName,
+              card: net.myCard,
+            });
+
+            netShowReady();
+          } else {
+            netShowReady();
+          }
+        });
+
+        c.on("data", (data) => {
+          console.log("Mensaje recibido:", data);
+          onNetMsg(data);
+        });
+
+        c.on("close", () => {
+          console.log("Conexión cerrada");
+          die();
+        });
+
+        c.on("error", (err) => {
+          console.error("Error de conexión:", err);
+          die();
+        });
       }
 
-      function createRoom() {
-        if (!hasNet) {
-          netShowErr(
-            "El módulo de red no cargó. Revisa tu conexión a internet.",
-          );
-          return;
-        }
-        netReset();
-        net.isHost = true;
-        net.myName = getName();
-        net.code = genCode();
-        netShowCreating();
-        net.peer = new Peer(pid(net.code));
-        net.peer.on("open", () => netShowWaiting());
-        net.peer.on("connection", (c) => {
-          if (net.conn) {
-            try {
-              c.close();
-            } catch (e) {}
-            return;
-          } // solo un rival
-          bindConn(c);
-          if (!S) netShowReady();
-        });
-        net.peer.on("disconnected", () => {
-          try {
-            net.peer.reconnect();
-          } catch (e) {}
-        });
-        net.peer.on("error", handlePeerErr);
-      }
       function joinRoom() {
         if (!hasNet) {
           netShowErr(
@@ -1986,36 +1974,52 @@
           );
           return;
         }
+
         const code = $("#codeInput").value.trim().toUpperCase();
+
         if (code.length !== 4) {
           netShowErr("El código de sala tiene 4 caracteres.");
           return;
         }
+
         netReset();
+
         net.isHost = false;
         net.myName = getName();
+
         netShowJoining(code);
+
         net.peer = new Peer();
-        net.peer.on("open", () => {
+
+        net.peer.on("open", (id) => {
+          console.log("Peer del invitado abierto:", id);
+
           net.myCard = buildCard();
+
           const c = net.peer.connect(pid(code), { reliable: true });
+
           bindConn(c);
-          c.on("open", () => {
-            netSend({ t: "hello", name: net.myName, card: net.myCard });
-            netShowReady();
-          });
         });
+
         net.peer.on("disconnected", () => {
           try {
             net.peer.reconnect();
-          } catch (e) {}
+          } catch (e) {
+            console.error("No se pudo reconectar:", e);
+          }
         });
+
         net.peer.on("error", handlePeerErr);
+
         const tok = ++hostAttempts;
+
         setTimeout(() => {
-          if (tok === hostAttempts && !net.connected)
-            netShowErr("No se pudo conectar. Verifica el código.");
-        }, 9000);
+          if (tok === hostAttempts && !net.connected) {
+            netShowErr(
+              "No se pudo conectar. Verifica el código de la sala y tu conexión a internet.",
+            );
+          }
+        }, 10000);
       }
       function handlePeerErr(e) {
         const t = (e && e.type) || "";
