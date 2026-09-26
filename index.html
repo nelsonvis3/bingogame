@@ -293,18 +293,32 @@
       }
       .seg button {
         flex: 1;
-        padding: 8px 4px;
+        padding: 8px 2px;
         border-radius: 6px;
         font-weight: 700;
         font-size: 17px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        letter-spacing: 0.03em;
         color: var(--ink-soft);
         transition: 0.15s;
       }
       .seg button.on {
         background: var(--ink);
         color: var(--paper);
+      }
+      .seg button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .walletline {
+        margin-top: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        color: rgba(247, 240, 223, 0.75);
+      }
+      .walletline b {
+        color: var(--gold);
+        font-size: 17px;
+        letter-spacing: 0.04em;
       }
       .setup input {
         width: 100%;
@@ -595,11 +609,29 @@
           opacity: 1;
         }
       }
+      .chip-pts {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 800;
+        font-size: 16px;
+        border-radius: 999px;
+        padding: 7px 12px;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.35);
+      }
+      .chip-pts svg {
+        width: 15px;
+        height: 15px;
+        color: #a8741a;
+      }
       .hbtns {
         display: flex;
         gap: 8px;
       }
       .ibtn {
+        position: relative;
         width: 40px;
         height: 40px;
         border-radius: 50%;
@@ -616,6 +648,22 @@
       .ibtn svg {
         width: 19px;
         height: 19px;
+      }
+      .badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 17px;
+        height: 17px;
+        border-radius: 9px;
+        background: var(--red);
+        color: var(--paper);
+        font-size: 11px;
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+        padding: 0 4px;
+        border: 2px solid var(--paper);
       }
 
       #game main {
@@ -994,7 +1042,10 @@
         border: 2.5px solid var(--pc);
         box-shadow: 0 8px 18px rgba(4, 20, 13, 0.4);
         white-space: nowrap;
-        animation: fnoteUp 1.6s ease forwards;
+        max-width: 92%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        animation: fnoteUp 1.65s ease forwards;
         pointer-events: none;
       }
       @keyframes fnoteUp {
@@ -1016,6 +1067,130 @@
           opacity: 0;
           transform: translate(-50%, -135%);
         }
+      }
+
+      /* ============ CHAT DE SALA ============ */
+      .chatpanel {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: min(520px, 100%);
+        background: var(--paper);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -12px 40px rgba(3, 15, 10, 0.5);
+        z-index: 45;
+        display: flex;
+        flex-direction: column;
+        max-height: 62vh;
+        animation: chatup 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes chatup {
+        from {
+          transform: translate(-50%, 60px);
+          opacity: 0;
+        }
+      }
+      .chathead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 14px 9px 16px;
+        border-bottom: 1.5px dashed var(--line);
+      }
+      .chathead h3 {
+        font-family: "Alfa Slab One";
+        font-size: 17px;
+        letter-spacing: 0.03em;
+        font-weight: 400;
+      }
+      .chathead .cname {
+        margin-left: auto;
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--ink-soft);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      #chatList {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        min-height: 110px;
+      }
+      .cmsg {
+        display: flex;
+      }
+      .cmsg.me {
+        justify-content: flex-end;
+      }
+      .cbub {
+        max-width: 80%;
+        padding: 7px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16.5px;
+        line-height: 1.3;
+        word-break: break-word;
+        box-shadow: 0 2px 0 rgba(9, 32, 22, 0.12);
+      }
+      .cmsg.op .cbub {
+        background: var(--paper-2);
+        border: 1.5px solid var(--line);
+        border-bottom-left-radius: 4px;
+        color: var(--blue-deep);
+      }
+      .cmsg.me .cbub {
+        background: var(--red);
+        color: var(--paper);
+        border-bottom-right-radius: 4px;
+      }
+      .quick {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px 4px;
+        overflow-x: auto;
+      }
+      .quick button {
+        flex: 0 0 auto;
+        font-weight: 700;
+        font-size: 14.5px;
+        color: var(--ink-soft);
+        border: 1.5px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 12px;
+        background: var(--paper-3);
+        transition: 0.15s;
+      }
+      .quick button:hover {
+        background: var(--paper-2);
+        color: var(--ink);
+      }
+      .chatin {
+        display: flex;
+        gap: 8px;
+        padding: 10px 12px 14px;
+      }
+      .chatin input {
+        flex: 1;
+        border: 2px solid #cbbd9c;
+        border-radius: 9px;
+        padding: 9px 12px;
+        background: var(--paper-3);
+        font-weight: 600;
+        font-size: 16.5px;
+        outline: none;
+        min-width: 0;
+      }
+      .chatin input:focus {
+        border-color: var(--red);
+      }
+      .chatin .btn {
+        padding: 9px 16px;
+        font-size: 16px;
       }
 
       /* ============ OVERLAYS ============ */
@@ -1119,6 +1294,18 @@
         font-size: 24px;
         color: var(--ink-soft);
         margin-top: 2px;
+      }
+      .wpts {
+        display: inline-block;
+        margin-top: 12px;
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: 0.06em;
+        color: #8a6410;
+        border: 2px dashed var(--gold);
+        border-radius: 999px;
+        padding: 5px 18px;
+        background: #fbf2da;
       }
       .wbtns {
         display: flex;
@@ -1291,12 +1478,37 @@
           <button data-d="medium" class="on">Media</button>
           <button data-d="hard">Difícil</button>
         </div>
+        <label>Puntos en juego</label>
+        <div class="seg stak" id="segStakeCpu">
+          <button data-v="5" class="on">5</button>
+          <button data-v="15">15</button>
+          <button data-v="25">25</button>
+          <button data-v="50">50</button>
+          <button data-v="100">100</button>
+        </div>
+        <p class="walletline">
+          Tus puntos: <b class="ptsval">100</b> · si ganas te llevas el bote
+        </p>
         <button class="btn" id="btnStartCpu">Repartir cartón</button>
       </div>
 
       <div class="setup hidden" id="setupNet">
         <label>Tu nombre</label>
         <input type="text" id="nameOnline" maxlength="12" value="Jugador 1" />
+        <label
+          >Puntos en juego
+          <small style="opacity: 0.6; text-transform: none; letter-spacing: 0"
+            >(los fija quien crea la sala)</small
+          ></label
+        >
+        <div class="seg stak" id="segStakeNet">
+          <button data-v="5" class="on">5</button>
+          <button data-v="15">15</button>
+          <button data-v="25">25</button>
+          <button data-v="50">50</button>
+          <button data-v="100">100</button>
+        </div>
+        <p class="walletline">Tus puntos: <b class="ptsval">100</b></p>
         <button class="btn" id="btnCreate">Crear sala</button>
         <div class="or">O ÚNETE A UNA</div>
         <div class="joinrow">
@@ -1311,12 +1523,20 @@
         </div>
         <div id="netStatus" class="netstatus hidden"></div>
         <p class="netnote">
-          El código de 4 letras conecta los dos navegadores a través de
-          servidores públicos de mensajes. Sin cuentas ni instalaciones:
-          funciona en cualquier dispositivo y red.
+          El código conecta ambos navegadores por servidores públicos de
+          mensajes. Sin cuentas ni instalaciones: funciona en cualquier
+          dispositivo y red. El ganador se lleva el bote; quien abandona, pierde
+          su apuesta.
         </p>
       </div>
 
+      <button
+        class="btn ghost hidden"
+        id="btnRecharge"
+        style="width: min(420px, 100%)"
+      >
+        Sin puntos · recargar 100
+      </button>
       <button class="rules-link" id="btnRules">¿cómo se juega?</button>
       <p class="lobby-foot">
         Números del 1 al 25 · Cartones iguales, distinto orden
@@ -1334,9 +1554,16 @@
           <span class="dots hidden" id="pillDots"><i></i><i></i><i></i></span>
           <span class="round" id="roundTxt"></span>
         </div>
+        <div class="chip-pts" title="Tus puntos">
+          <i data-lucide="coins"></i><span id="walletVal">100</span>
+        </div>
         <div class="hbtns">
           <button class="ibtn" id="btnSound" title="Sonido">
             <i data-lucide="volume-2"></i>
+          </button>
+          <button class="ibtn hidden" id="btnChat" title="Charla de sala">
+            <i data-lucide="message-circle"></i
+            ><span class="badge hidden" id="chatBadge"></span>
           </button>
           <button class="ibtn" id="btnHelp" title="Reglas">
             <i data-lucide="help-circle"></i>
@@ -1354,7 +1581,7 @@
         </div>
 
         <div class="opstrip" id="opstrip">
-          <span class="pdot" id="pdot"></span>
+          <span class="pdot"></span>
           <h2 id="oppName">Rival</h2>
           <div class="mslots" id="mslots"></div>
           <span class="lines-ct" id="oppCt">0/5</span>
@@ -1371,12 +1598,36 @@
       </main>
     </section>
 
+    <!-- ============ CHAT DE SALA ============ -->
+    <div id="chatPanel" class="chatpanel hidden">
+      <div class="chathead">
+        <h3>Charla de sala</h3>
+        <span class="cname" id="chatWith">RIVAL</span>
+        <button class="ibtn" id="btnChatClose" title="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div id="chatList"></div>
+      <div class="quick" id="chatQuick"></div>
+      <div class="chatin">
+        <input
+          type="text"
+          id="chatInput"
+          maxlength="120"
+          placeholder="Escribe algo…"
+          autocomplete="off"
+        />
+        <button class="btn" id="btnChatSend">Enviar</button>
+      </div>
+    </div>
+
     <!-- ============ VICTORIA ============ -->
     <div id="win" class="overlay hidden">
       <div class="panel" id="winPanel">
         <div class="wbanner" id="wbanner">¡BINGO!</div>
         <p class="wwin">Ganó <b id="wname">Tú</b></p>
         <p class="wsub" id="wstats"></p>
+        <p class="wpts hidden" id="wpts"></p>
         <div class="wbtns">
           <button class="btn" id="btnRematch">Revancha</button>
           <button class="btn ghost" id="btnMenu2">Menú</button>
@@ -1405,6 +1656,15 @@
         "#f7f0df",
         "#3c8a63",
       ];
+      const STAKES = [5, 15, 25, 50, 100];
+      const QUICK_CHAT = [
+        "¡Buena!",
+        "¡Qué ojo!",
+        "Jajaja",
+        "Casi…",
+        "Suerte",
+        "¿Revancha?",
+      ];
 
       const LINES = [];
       for (let r = 0; r < 5; r++)
@@ -1418,6 +1678,7 @@
       /* ================= ESTADO ================= */
       let S = null;
       let selDiff = "medium";
+      let selStake = 5;
       let soundOn = true;
 
       /* ================= AUDIO (WebAudio, sin archivos) ================= */
@@ -1488,6 +1749,7 @@
       const sPop = () => tone(340, 560, 0.09, "sine", 0.15);
       const sClick = () => tone(950, 720, 0.05, "square", 0.06);
       const sDeny = () => tone(160, 110, 0.09, "square", 0.12);
+      const sMsg = () => tone(520, 780, 0.08, "sine", 0.12);
       const sWin = () => {
         [523, 659, 784, 1047, 1319].forEach((f, i) =>
           tone(f, f, 0.22, "triangle", 0.2, i * 0.11),
@@ -1495,6 +1757,64 @@
         noiseBurst(0.35, 0.1, 0.55);
       };
       const sLose = () => tone(330, 165, 0.5, "sine", 0.16);
+
+      /* ================= PUNTOS (billetera local hasta tener backend) ================= */
+      const WKEY = "bingo25_wallet_v1";
+      function wallet() {
+        const v = parseInt(localStorage.getItem(WKEY), 10);
+        return Number.isFinite(v) ? v : 100;
+      }
+      function walletSet(v) {
+        v = Math.max(0, v | 0);
+        try {
+          localStorage.setItem(WKEY, String(v));
+        } catch (e) {}
+        updateWalletUI();
+      }
+      function walletAdd(n) {
+        walletSet(wallet() + n);
+      }
+      function bestStake(v) {
+        let b = 0;
+        for (const s of STAKES) if (s <= v) b = s;
+        return b;
+      }
+      function validStake(v) {
+        return STAKES.includes(v) ? v : 5;
+      }
+      function updateWalletUI() {
+        const v = wallet();
+        $("#walletVal").textContent = v;
+        document
+          .querySelectorAll(".ptsval")
+          .forEach((el) => (el.textContent = v));
+        $("#btnRecharge").classList.toggle("hidden", v >= 5);
+        document.querySelectorAll(".stak button").forEach((b) => {
+          const can = +b.dataset.v <= v;
+          b.disabled = !can;
+        });
+        if (selStake > v) {
+          selStake = bestStake(v);
+          syncStakeUI();
+        }
+      }
+      function syncStakeUI() {
+        document
+          .querySelectorAll(".stak button")
+          .forEach((b) => b.classList.toggle("on", +b.dataset.v === selStake));
+      }
+      function ensureStake() {
+        if (wallet() >= Math.max(5, selStake)) return true;
+        openModal(`<h3>Sin puntos</h3>
+    <p class="big">Te quedaste sin puntos. Recarga para seguir jugando.</p>
+    <div class="mbtns"><button class="btn" id="mRecharge2">Recargar 100</button></div>`);
+        $("#mRecharge2").onclick = () => {
+          sClick();
+          walletSet(100);
+          closeModal();
+        };
+        return false;
+      }
 
       /* ================= CARTONES: mismos números (1-25), orden distinto ================= */
       function shuffle(a) {
@@ -1556,10 +1876,13 @@
         S = {
           mode: o.mode,
           diff: o.diff || "medium",
+          stake: o.stake || 0,
           token: (S ? S.token : 0) + 1,
           over: false,
           phase: "myCall",
           target: null,
+          chat: [],
+          unread: 0,
           me: {
             name: o.myName,
             card: o.myCard,
@@ -1577,10 +1900,8 @@
           },
         };
         rematch = { me: false, opp: false };
-        if (o.mode === "online") {
-          net.connected = true;
-          net.lastSeen = Date.now();
-        }
+        if (S.stake) walletAdd(-S.stake); // ambos dejan su apuesta sobre la mesa
+        if (o.mode === "online") net.lastSeen = Date.now();
         $("#lobby").classList.add("hidden");
         $("#game").classList.remove("hidden");
         hideWin();
@@ -1588,6 +1909,10 @@
         $("#roomChip").classList.toggle("hidden", o.mode !== "online");
         if (o.mode === "online")
           $("#roomChip").textContent = "SALA " + net.code;
+        $("#btnChat").classList.toggle("hidden", o.mode !== "online");
+        $("#chatPanel").classList.add("hidden");
+        updateChatBadge();
+        $("#chatWith").textContent = S.opp.name.toUpperCase();
         $("#oppName").textContent = S.opp.name;
         $("#name0").textContent = S.me.name;
         buildBoard();
@@ -1728,13 +2053,14 @@
           );
         }
       }
-      function floatNote(el, text, pen) {
+      function floatNote(el, text, pen, dur = 1650) {
         const n = document.createElement("div");
         n.className = "fnote";
         n.textContent = text;
         n.style.borderColor = pen;
+        n.style.animationDuration = dur + "ms";
         el.appendChild(n);
-        setTimeout(() => n.remove(), 1650);
+        setTimeout(() => n.remove(), dur + 60);
       }
       function updateCounts() {
         $("#ct0").textContent = S.me.letters + "/5";
@@ -1869,10 +2195,12 @@
 
       /* =====================================================================
    RED — MQTT sobre WebSocket con brokers públicos (SIN WebRTC).
-   Es una conexión saliente normal (como cargar una web): atraviesa
-   cualquier NAT, red de empresa o datos móviles. Sin salas fantasma:
-   el anuncio de sala usa "retain" (el broker guarda el último mensaje).
-   Tres brokers en cascada: si uno no responde, se prueba el siguiente.
+   · Descubrimiento: latido retenido en  bingo25x5/v1/<CÓDIGO>/h  (anfitrión)
+   · Cada quien publica sus latidos en su topic público (/h o /g)
+   · TODO lo demás (llamadas, chat, apuestas) va por topics PRIVADOS
+     /p/<id>, así un tercero no ve ni interfiere en la partida.
+   · La máquina de estados valida cada mensaje: los duplicados de la red
+     se descartan solos (una llamada solo se acepta si estás esperándola).
    ===================================================================== */
       const BROKERS = [
         "wss://broker.emqx.io:8084/mqtt",
@@ -1887,27 +2215,36 @@
           s += CODE_AB[(Math.random() * CODE_AB.length) | 0];
         return s;
       }
+      function rid() {
+        let s = "";
+        for (let i = 0; i < 6; i++)
+          s += CODE_AB[(Math.random() * CODE_AB.length) | 0];
+        return s;
+      }
 
       let net = null;
       function netFresh() {
         return {
           client: null,
-          send: null,
           ok: false,
+          alive: false,
+          failed: false,
           isHost: false,
           code: "",
-          connected: false,
-          alive: false,
-          starting: false,
-          myName: "",
+          myId: rid(),
+          oppId: "",
           oppName: "",
+          myName: "",
+          stake: 5,
           hbTimer: null,
           watchTimer: null,
           watchdog: null,
           lastSeen: 0,
           lastStart: null,
-          lastOut: null,
+          sid: "",
           sawOpen: false,
+          readyAt: 0,
+          poorShown: false,
         };
       }
       net = netFresh();
@@ -1916,38 +2253,66 @@
       function netReset() {
         if (net) {
           net.alive = false;
-          if (net.hbTimer) clearInterval(net.hbTimer);
-          if (net.watchTimer) clearTimeout(net.watchTimer);
-          if (net.watchdog) clearInterval(net.watchdog);
-          const oldSend = net.send,
-            oldClient = net.client,
-            wasHost = net.isHost;
-          if (oldClient) {
-            if (wasHost && oldSend) {
+          clearInterval(net.hbTimer);
+          clearTimeout(net.watchTimer);
+          clearInterval(net.watchdog);
+          const c = net.client;
+          if (c) {
+            if (net.isHost && net.code) {
               try {
-                oldSend({ t: "closed" }, true);
+                c.publish(TBASE + net.code + "/h", "", {
+                  qos: 0,
+                  retain: true,
+                });
               } catch (e) {} // limpia la sala retenida
-              setTimeout(() => {
-                try {
-                  oldClient.end(true);
-                } catch (e) {}
-              }, 250);
-            } else {
               try {
-                oldClient.end(true);
+                c.publish(
+                  TBASE + net.code + "/h",
+                  JSON.stringify({ t: "closed" }),
+                  { qos: 0 },
+                );
               } catch (e) {}
             }
+            setTimeout(() => {
+              try {
+                c.end(false);
+              } catch (e) {}
+            }, 250);
           }
         }
         net = netFresh();
         rematch = { me: false, opp: false };
       }
       function netSend(o) {
-        if (!net || !net.send || !net.alive) return;
-        if (S && S.mode === "online" && (o.t === "call" || o.t === "found"))
-          net.lastOut = o;
+        if (!net || !net.client || !net.alive || !net.oppId) return;
         try {
-          net.send(o);
+          net.client.publish(
+            TBASE + net.code + "/p/" + net.oppId,
+            JSON.stringify(o),
+            { qos: 1 },
+          );
+        } catch (e) {}
+      }
+      function netSendTo(pid, o) {
+        if (!net || !net.client) return;
+        try {
+          net.client.publish(
+            TBASE + net.code + "/p/" + pid,
+            JSON.stringify(o),
+            { qos: 1 },
+          );
+        } catch (e) {}
+      }
+      function netHeartbeat() {
+        const topic = TBASE + net.code + (net.isHost ? "/h" : "/g");
+        const msg = JSON.stringify({
+          t: "hb",
+          id: net.myId,
+          name: net.myName,
+          ts: Date.now(),
+        });
+        try {
+          net.client.publish(topic, msg, { qos: 0, retain: net.isHost });
         } catch (e) {}
       }
       function setNetButtons(dis) {
@@ -1986,35 +2351,40 @@
         }
         return false;
       }
-
-      /* conecta con el primer broker que responda */
-      function connectBroker(myTopic) {
+      function connectBroker() {
         return loadMqtt().then((ok) => {
-          if (!ok || !net || !net.alive) return Promise.resolve(null);
+          if (!ok || !net || !net.alive) return false;
           return new Promise((resolve) => {
             let i = 0,
               settled = false;
+            const willTopic = TBASE + net.code + (net.isHost ? "/h" : "/g");
             const tryNext = () => {
               if (settled || !net || !net.alive) return;
               if (i >= BROKERS.length) {
                 settled = true;
-                resolve(null);
+                resolve(false);
                 return;
               }
               const url = BROKERS[i++];
-              const c = mqtt.connect(url, {
-                keepalive: 30,
-                reconnectPeriod: 2500,
-                connectTimeout: 6000,
-                clean: true,
-                clientId: "bingo25_" + Math.random().toString(16).slice(2, 10),
-                will: {
-                  topic: myTopic,
-                  payload: JSON.stringify({ t: "bye" }),
-                  qos: 0,
-                  retain: false,
-                },
-              });
+              let c;
+              try {
+                c = mqtt.connect(url, {
+                  keepalive: 30,
+                  reconnectPeriod: 2500,
+                  connectTimeout: 6000,
+                  clean: true,
+                  clientId: "bingo25_" + rid().toLowerCase(),
+                  will: {
+                    topic: willTopic,
+                    payload: JSON.stringify({ t: "bye", id: net.myId }),
+                    qos: 0,
+                    retain: false,
+                  },
+                });
+              } catch (e) {
+                tryNext();
+                return;
+              }
               const to = setTimeout(() => {
                 if (settled) return;
                 try {
@@ -2031,9 +2401,22 @@
                 }
                 settled = true;
                 clearTimeout(to);
+                net.client = c;
                 net.ok = true;
-                wireClient(c);
-                resolve(c);
+                net.lastSeen = Date.now();
+                c.on("message", (topic, payload) => {
+                  let m;
+                  try {
+                    m = JSON.parse(new TextDecoder().decode(payload));
+                  } catch (e) {
+                    return;
+                  }
+                  onNetMsg(m);
+                });
+                c.on("close", () => {
+                  net.ok = false;
+                });
+                resolve(true);
               });
               c.on("error", () => {
                 /* el timeout decide el cambio de broker */
@@ -2043,183 +2426,174 @@
           });
         });
       }
-      function wireClient(c) {
-        net.client = c;
-        c.on("message", (topic, payload) => {
-          let m;
-          try {
-            m = JSON.parse(new TextDecoder().decode(payload));
-          } catch (e) {
-            return;
-          }
-          onNetMsg(m);
-        });
-        c.on("close", () => {
-          net.ok = false;
-        });
-        c.on("connect", () => {
-          net.ok = true;
-        });
-      }
-
-      /* ---------- crear sala: un paso ---------- */
-      async function createRoom() {
-        netReset();
-        setNetButtons(true);
-        net.isHost = true;
-        net.alive = true;
-        net.myName = getName();
-        net.code = genCode();
-        netShow('<p class="hint"><span class="spin"></span>Abriendo sala…</p>');
-        const th = TBASE + net.code + "/h"; // el anfitrión publica aquí
-        const tg = TBASE + net.code + "/g"; // …y escucha aquí
-        const client = await connectBroker(th);
-        if (!net || !net.alive) return;
-        if (!client) {
-          netFail(
-            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
-          );
-          return;
-        }
-        client.subscribe(tg, { qos: 1 });
-        net.send = (o) => client.publish(th, JSON.stringify(o), { qos: 1 });
-        // anuncio retenido: cualquier rival que entre ve la sala al instante
-        const hb = () => netSend2((o) => net.send(o), true);
-        netSend({ t: "hb", name: net.myName });
-        net.hbTimer = setInterval(() => {
-          try {
-            net.send({ t: "hb", name: net.myName });
-          } catch (e) {}
-        }, 2500);
-        try {
-          client.publish(th, JSON.stringify({ t: "hb", name: net.myName }), {
-            qos: 1,
-            retain: true,
-          });
-        } catch (e) {}
-        startWatchdog();
-        netShowWaitingUI();
-      }
-      function netSend2(fn, r) {
-        fn();
-      }
-
-      /* ---------- unirse: un paso ---------- */
-      async function joinRoomByCode() {
-        const code = $("#codeInput").value.trim().toUpperCase();
-        if (code.length !== 4) {
-          netFail("El código de sala tiene 4 letras.");
-          return;
-        }
-        netReset();
-        setNetButtons(true);
-        net.isHost = false;
-        net.alive = true;
-        net.myName = getName();
-        net.code = code;
-        netShow(
-          '<p class="hint"><span class="spin"></span>Buscando la sala ' +
-            code +
-            "…</p>",
-        );
-        const th = TBASE + code + "/h"; // el anfitrión habla aquí
-        const tg = TBASE + code + "/g"; // …y yo publico aquí
-        const client = await connectBroker(tg);
-        if (!net || !net.alive) return;
-        if (!client) {
-          netFail(
-            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
-          );
-          return;
-        }
-        client.subscribe(th, { qos: 1 });
-        net.send = (o) => client.publish(tg, JSON.stringify(o), { qos: 1 });
-        net.hbTimer = setInterval(
-          () => netSend({ t: "hb", name: net.myName }),
-          2500,
-        );
-        netSend({ t: "hb", name: net.myName }); // primer saludo ya mismo
-        startWatchdog();
-        net.watchTimer = setTimeout(() => {
-          if (net.connected) return;
-          netFail(
-            "No se encontró una sala abierta con el código " +
-              code +
-              ". Verifica el código y que el anfitrión tenga la sala abierta.",
-          );
-        }, 8000);
-      }
-      function netFail(msg) {
-        setNetButtons(false);
-        netShow(
-          '<p class="hint" style="color:var(--red)">' + msg + "</p>",
-          true,
-        );
-      }
       function startWatchdog() {
         if (net.watchdog) clearInterval(net.watchdog);
         net.watchdog = setInterval(() => {
+          if (!net || !net.alive) return;
+          // en partida: silencio del rival = desconexión
           if (
             S &&
             S.mode === "online" &&
             !S.over &&
-            net.connected &&
+            net.lastSeen &&
             Date.now() - net.lastSeen > 9000
           ) {
-            net.connected = false;
             handleNetDown();
+            return;
+          }
+          // anfitrión esperando: el rival desapareció antes de empezar
+          if (
+            !S &&
+            net.isHost &&
+            net.oppId &&
+            net.lastSeen &&
+            Date.now() - net.lastSeen > 8000
+          ) {
+            net.oppId = "";
+            net.pairedReset();
+            netShowWaitingUI();
+            return;
+          }
+          // invitado: envió 'ready' pero nunca llegó el arranque
+          if (
+            !S &&
+            !net.isHost &&
+            net.readyAt &&
+            Date.now() - net.readyAt > 9000 &&
+            !net.failed
+          ) {
+            netFail("El anfitrión no respondió a tiempo. Inténtalo de nuevo.");
           }
         }, 3000);
       }
+      net.pairedReset = function () {};
 
       /* ---------- protocolo entre jugadores ---------- */
       function onNetMsg(m) {
         if (!m || !m.t) return;
         net.lastSeen = Date.now();
         switch (m.t) {
-          case "hb": // latido: sirve de saludo, de anuncio y de "estoy vivo"
+          case "hb": {
             if (net.isHost) {
-              if (!S) {
-                if (net.starting && net.lastStart) {
-                  netSend(net.lastStart);
-                  break;
-                } // reenviar si se perdió
+              if (!m.id) break;
+              if (!net.oppId) {
+                net.oppId = m.id;
                 net.oppName = (m.name || "Rival").slice(0, 12);
-                hostStart();
+                netShow(
+                  '<p class="hint"><span class="spin"></span>¡Rival conectado! Acordando apuesta…</p>',
+                );
+              } else if (m.id !== net.oppId) {
+                netSendTo(m.id, { t: "busy" });
+                break; // sala ocupada para extraños
+              }
+              if (!S) {
+                netSend({ t: "roominfo", stake: net.stake }); // se reenvía hasta el 'ready'
               } else if (
                 S.over &&
                 net.lastStart &&
                 Date.now() - (S.tokenStart || 0) < 4000
               ) {
-                netSend(net.lastStart); // por si el rival aún no recibió el arranque
+                netSend(net.lastStart); // por si el 'start' se perdió
               }
-            } else if (!S && !net.sawOpen) {
-              net.sawOpen = true;
-              if (net.watchTimer) {
-                clearTimeout(net.watchTimer);
-                net.watchTimer = null;
+            } else {
+              if (m.id && !net.oppId) net.oppId = m.id;
+              if (
+                m.id === net.oppId &&
+                m.ts &&
+                Date.now() - m.ts < 7000 &&
+                !S &&
+                !net.sawOpen
+              ) {
+                net.sawOpen = true;
+                if (net.watchTimer) {
+                  clearTimeout(net.watchTimer);
+                  net.watchTimer = null;
+                }
+                netShow(
+                  '<p class="hint"><span class="spin"></span>¡Sala encontrada! Acordando apuesta…</p>',
+                );
               }
-              netShow(
-                '<p class="hint"><span class="spin"></span>¡Sala encontrada! Conectando…</p>',
-              );
             }
             break;
-          case "start":
+          }
+          case "roominfo": {
+            // (invitado) apuesta de la sala
+            if (net.isHost || S) break;
+            const st = validStake(m.stake);
+            net.stake = st;
+            netShow(
+              '<p class="hint"><span class="spin"></span>Apuesta de la sala: <b>' +
+                st +
+                " pts</b> · preparando cartones…</p>",
+            );
+            const w = wallet();
+            if (w >= st) {
+              net.readyAt = Date.now();
+              netSend({ t: "ready" });
+            } else {
+              const alt = bestStake(w);
+              if (alt > 0) {
+                net.stake = alt;
+                netSend({ t: "stake", v: alt });
+                netShow(
+                  '<p class="hint"><span class="spin"></span>Pediste bajar la apuesta a ' +
+                    alt +
+                    " pts…</p>",
+                );
+              } else {
+                netSend({ t: "poor" });
+                netFail(
+                  "No tienes puntos suficientes para esta sala (mínimo 5). Recarga en el menú.",
+                );
+              }
+            }
+            break;
+          }
+          case "ready": // (anfitrión) rival conforme
+            if (!net.isHost || S) break;
+            hostStart();
+            break;
+          case "stake": {
+            // (anfitrión) rival pidió bajar apuesta
+            if (!net.isHost || S) break;
+            const v = validStake(m.v);
+            if (v && v < net.stake) net.stake = v;
+            break; // el roominfo reenviado con el próximo latido confirma el cambio
+          }
+          case "poor": // (anfitrión) rival sin saldo
+            if (!net.isHost || S || net.poorShown) break;
+            net.poorShown = true;
+            netShow(
+              '<p class="hint" style="color:var(--red)">Tu rival no tiene puntos suficientes. La sala sigue abierta.</p>',
+              true,
+            );
+            break;
+          case "start": {
+            // (invitado) cartones y orden
             if (net.isHost) break;
+            if (m.sid && m.sid === net.sid) break; // duplicado
             if (S && !S.over) break;
             if (net.watchTimer) {
               clearTimeout(net.watchTimer);
               net.watchTimer = null;
             }
-            if (net.hbTimer) {
-              clearInterval(net.hbTimer);
-              net.hbTimer = null;
+            const st = validStake(m.stake);
+            if (wallet() < st) {
+              netSend({ t: "poor2" });
+              openModal(`<h3>Sin puntos</h3>
+          <p class="big">La sala apuesta ${st} pts y tu saldo es de ${wallet()}.</p>
+          <div class="mbtns"><button class="btn" id="mBackL">Entendido</button></div>`);
+              $("#mBackL").onclick = () => {
+                closeModal();
+                netReset();
+                goLobby();
+              };
+              break;
             }
+            net.sid = m.sid;
+            net.stake = st;
+            net.readyAt = 0;
             if (!Array.isArray(m.hcard) || !Array.isArray(m.gcard)) break;
-            net.hbTimer = setInterval(
-              () => netSend({ t: "hb", name: net.myName }),
-              2500,
-            );
             startMatch({
               mode: "online",
               myName: net.myName,
@@ -2227,14 +2601,37 @@
               myCard: m.gcard,
               oppCard: m.hcard,
               iCallFirst: m.first === "guest",
+              stake: st,
             });
             break;
+          }
+          case "poor2": {
+            // (anfitrión) rival sin saldo en revancha
+            if (!net.isHost || !S || S.over) break;
+            if (S.stake) walletAdd(S.stake); // devolver la apuesta
+            S.over = true;
+            S.phase = "over";
+            updateStatusUI();
+            openModal(`<h3>Revancha cancelada</h3>
+        <p class="big">${S.opp.name} no tiene puntos suficientes. Se te devolvieron tus ${S.stake} pts.</p>
+        <div class="mbtns"><button class="btn" id="mBack2">Menú</button></div>`);
+            $("#mBack2").onclick = () => {
+              closeModal();
+              netReset();
+              goLobby();
+            };
+            const rb = $("#btnRematch");
+            rb.disabled = false;
+            rb.textContent = "Revancha";
+            break;
+          }
           case "call": {
-            if (!S || S.over || net.isHost === (S.mode !== "online")) break;
-            if (S.phase === "myFind" && S.target === m.n) break; // duplicado
-            sPop();
+            // el rival llamó: debo encontrarlo
+            if (!S || S.over || S.mode !== "online") break;
+            if (S.phase !== "oppCall") break; // ← solo si estoy esperando una llamada
             const i = S.opp.card.indexOf(m.n);
             if (i < 0 || S.opp.marked[i]) break;
+            sPop();
             applyMark("opp", i);
             if (S.over) break;
             S.target = m.n;
@@ -2242,15 +2639,24 @@
             break;
           }
           case "found": {
-            if (!S || S.over) break;
-            sPop();
+            // el rival encontró mi número
+            if (!S || S.over || S.mode !== "online") break;
+            if (S.phase !== "oppFind") break; // ← solo si él está buscando el mío
             const i = S.opp.card.indexOf(m.n);
             if (i < 0 || S.opp.marked[i]) break;
+            sPop();
             applyMark("opp", i);
             if (S.over) break;
             setPhase("oppCall");
             break;
           }
+          case "chat":
+            if (!S) break;
+            pushChat("opp", String(m.m || "").slice(0, 120));
+            break;
+          case "quit":
+            if (S && S.mode === "online" && !S.over) winByQuit();
+            break;
           case "busy":
             if (!S) netFail("Esa sala ya está jugando una partida.");
             break;
@@ -2269,20 +2675,21 @@
         }
       }
       function hostStart() {
-        if (net.starting) return;
-        net.starting = true;
         const hcard = buildCard(),
           gcard = buildCard();
         const first = Math.random() < 0.5 ? "host" : "guest";
         const msg = {
           t: "start",
+          sid: Date.now() + "-" + rid(),
           hname: net.myName,
           gname: net.oppName,
           hcard,
           gcard,
           first,
+          stake: net.stake,
         };
         net.lastStart = msg;
+        net.sid = msg.sid;
         netSend(msg);
         startMatch({
           mode: "online",
@@ -2291,9 +2698,9 @@
           myCard: hcard,
           oppCard: gcard,
           iCallFirst: first === "host",
+          stake: net.stake,
         });
         S.tokenStart = Date.now();
-        net.starting = false;
       }
       function tryOnlineRematch() {
         if (!(rematch.me && rematch.opp)) return;
@@ -2301,19 +2708,131 @@
       }
       function handleNetDown() {
         if (S && S.mode === "online") {
-          if (!S.over) {
-            openModal(`<h3>Conexión perdida</h3>
-        <p class="big">${S.opp.name} se ha desconectado.</p>
-        <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
-            $("#mLeave2").onclick = () => {
-              closeModal();
-              netReset();
-              goLobby();
-            };
+          if (S.over) return;
+          S.over = true;
+          S.phase = "over";
+          updateStatusUI();
+          let msg = S.opp.name + " se ha desconectado.";
+          if (S.stake) {
+            walletAdd(S.stake);
+            msg += " Se te devolvieron tus " + S.stake + " pts.";
           }
-        } else if (net && net.alive && !net.isHost) {
-          netFail("Tu rival se desconectó antes de empezar.");
+          openModal(`<h3>Conexión perdida</h3><p class="big">${msg}</p>
+      <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
+          $("#mLeave2").onclick = () => {
+            closeModal();
+            netReset();
+            goLobby();
+          };
+        } else if (net && net.alive) {
+          if (net.isHost && !S) {
+            net.oppId = "";
+            netShowWaitingUI(); // el rival se fue: la sala sigue abierta
+          } else if (!net.isHost) {
+            netFail("El anfitrión cerró la sala.");
+          }
         }
+      }
+      function netFail(msg) {
+        if (!net) return;
+        net.alive = false;
+        net.failed = true;
+        clearInterval(net.hbTimer);
+        clearTimeout(net.watchTimer);
+        clearInterval(net.watchdog);
+        const c = net.client;
+        if (c) {
+          if (net.isHost && net.code) {
+            try {
+              c.publish(TBASE + net.code + "/h", "", { qos: 0, retain: true });
+            } catch (e) {}
+          }
+          setTimeout(() => {
+            try {
+              c.end(false);
+            } catch (e) {}
+          }, 250);
+        }
+        setNetButtons(false);
+        netShow(
+          '<p class="hint" style="color:var(--red)">' + msg + "</p>",
+          true,
+        );
+      }
+
+      /* ---------- crear sala / unirse ---------- */
+      async function createRoom() {
+        if (!ensureStake()) return;
+        netReset();
+        setNetButtons(true);
+        net.isHost = true;
+        net.alive = true;
+        net.myName = getName();
+        net.code = genCode();
+        net.stake = selStake;
+        netShow('<p class="hint"><span class="spin"></span>Abriendo sala…</p>');
+        const ok = await connectBroker();
+        if (!net || !net.alive) return;
+        if (!ok) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        try {
+          net.client.subscribe(TBASE + net.code + "/g", { qos: 1 }); // latidos del rival
+          net.client.subscribe(TBASE + net.code + "/p/" + net.myId, { qos: 1 }); // mensajes privados
+        } catch (e) {}
+        net.hbTimer = setInterval(netHeartbeat, 2500);
+        netHeartbeat();
+        startWatchdog();
+        netShowWaitingUI();
+      }
+      async function joinRoomByCode() {
+        const code = $("#codeInput").value.trim().toUpperCase();
+        if (code.length !== 4) {
+          netShowErr("El código de sala tiene 4 letras.");
+          return;
+        }
+        netReset();
+        setNetButtons(true);
+        net.isHost = false;
+        net.alive = true;
+        net.myName = getName();
+        net.code = code;
+        netShow(
+          '<p class="hint"><span class="spin"></span>Buscando la sala ' +
+            code +
+            "…</p>",
+        );
+        const ok = await connectBroker();
+        if (!net || !net.alive) return;
+        if (!ok) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        try {
+          net.client.subscribe(TBASE + code + "/p/" + net.myId, { qos: 1 }); // mensajes privados
+          net.client.subscribe(TBASE + code + "/h", { qos: 1 }); // latidos del anfitrión
+        } catch (e) {}
+        net.hbTimer = setInterval(netHeartbeat, 2500);
+        netHeartbeat();
+        startWatchdog();
+        net.watchTimer = setTimeout(() => {
+          if (S || !net.alive || net.failed) return;
+          if (!net.sawOpen)
+            netFail(
+              "No se encontró una sala activa con el código " +
+                code +
+                ". Verifica el código y que el anfitrión tenga la sala abierta.",
+            );
+          else
+            netFail(
+              "El anfitrión no responde. Puede que haya cerrado la sala; inténtalo de nuevo.",
+            );
+        }, 12000);
       }
 
       /* ---------- UI de espera / compartir ---------- */
@@ -2326,6 +2845,9 @@
         el.classList.toggle("err", !!err);
         el.innerHTML = html;
         lucide.createIcons();
+      }
+      function netShowErr(t) {
+        netShow('<p class="hint" style="color:var(--red)">' + t + "</p>", true);
       }
       function netShowWaitingUI() {
         const share = /^https?:$/.test(location.protocol)
@@ -2341,7 +2863,7 @@
               '<button class="copybtn" id="shareBtn"><i data-lucide="share-2"></i> Enviar</button>';
         }
         netShow(`
-    <p class="hint">Comparte este código con tu rival</p>
+    <p class="hint">Sala abierta · apuesta de <b>${net.stake} pts</b></p>
     <div class="bigcode">${net.code}</div>
     <div class="copyrow">${btns}</div>
     <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival…</p>`);
@@ -2396,6 +2918,65 @@
         ta.remove();
       }
 
+      /* ================= CHAT DE SALA ================= */
+      function toggleChat(force) {
+        const p = $("#chatPanel");
+        const show =
+          force !== undefined ? force : p.classList.contains("hidden");
+        p.classList.toggle("hidden", !show);
+        if (show) {
+          if (S) S.unread = 0;
+          updateChatBadge();
+          renderChat();
+          setTimeout(() => $("#chatInput").focus(), 80);
+        } else if (document.activeElement) {
+          document.activeElement.blur();
+        }
+      }
+      function updateChatBadge() {
+        const u = S ? S.unread : 0;
+        $("#chatBadge").textContent = u > 9 ? "9+" : u;
+        $("#chatBadge").classList.toggle("hidden", !u);
+      }
+      function renderChat() {
+        const box = $("#chatList");
+        box.innerHTML = "";
+        (S ? S.chat : []).forEach((c) => {
+          const row = document.createElement("div");
+          row.className = "cmsg " + (c.who === "me" ? "me" : "op");
+          const b = document.createElement("div");
+          b.className = "cbub";
+          b.textContent = c.text; // textContent: nunca se inyecta HTML ajeno
+          row.appendChild(b);
+          box.appendChild(row);
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+      function pushChat(who, text) {
+        if (!S) return;
+        S.chat.push({ who, text });
+        if ($("#chatPanel").classList.contains("hidden")) {
+          S.unread++;
+          updateChatBadge();
+          if (who === "opp") {
+            sMsg();
+            floatNote($("#opstrip"), S.opp.name + ": " + text, BLUE, 2600);
+          }
+        } else {
+          if (who === "opp") sMsg();
+          renderChat();
+        }
+      }
+      function sendChat(text) {
+        text = (text || "").trim().slice(0, 120);
+        if (!text || !S) return;
+        netSend({ t: "chat", m: text });
+        S.chat.push({ who: "me", text });
+        if ($("#chatPanel").classList.contains("hidden")) {
+          floatNote($("#opstrip"), "Tú: " + text, RED, 2600);
+        } else renderChat();
+      }
+
       /* ================= VICTORIA ================= */
       function win(who) {
         S.over = true;
@@ -2403,6 +2984,11 @@
         updateStatusUI();
         const P = S[who];
         const col = who === "me" ? RED : BLUE;
+        let pts = "";
+        if (S.stake) {
+          if (who === "me") walletAdd(S.stake * 2); // se lleva el bote (neto +S.stake)
+          pts = (who === "me" ? "+" + S.stake : "−" + S.stake) + " pts";
+        }
         $("#wbanner").style.setProperty("--wc", col);
         $("#winPanel").style.setProperty("--wc", col);
         $("#wname").textContent = P.name;
@@ -2412,6 +2998,8 @@
           " las cinco letras en " +
           rounds +
           " rondas";
+        $("#wpts").textContent = pts;
+        $("#wpts").classList.toggle("hidden", !pts);
         if (who === "me") {
           sWin();
           launchConfetti();
@@ -2425,6 +3013,22 @@
           () => $("#win").classList.remove("hidden"),
           who === "me" ? 900 : 650,
         );
+      }
+      function winByQuit() {
+        if (!S || S.over) return;
+        S.over = true;
+        S.phase = "over";
+        updateStatusUI();
+        if (S.stake) walletAdd(S.stake * 2); // el que se queda, se lleva todo el bote
+        $("#wbanner").style.setProperty("--wc", RED);
+        $("#winPanel").style.setProperty("--wc", RED);
+        $("#wname").textContent = S.me.name;
+        $("#wstats").textContent = S.opp.name + " abandonó la partida";
+        $("#wpts").textContent = S.stake ? "+" + S.stake + " pts" : "";
+        $("#wpts").classList.toggle("hidden", !S.stake);
+        sWin();
+        launchConfetti();
+        setTimeout(() => $("#win").classList.remove("hidden"), 500);
       }
       function hideWin() {
         $("#win").classList.add("hidden");
@@ -2521,21 +3125,33 @@
       <li>En tu turno de <b>llamar</b>, toca cualquier casilla libre de tu cartón: ese número queda marcado para ti… y el rival deberá <b>buscarlo</b> en el suyo.</li>
       <li>Cuando el rival llama, <b>encuentra su número</b> en tu cartón y tócalo. Quien encuentra, llama después.</li>
       <li>Cada línea completa (fila, columna o diagonal) estampa una letra sobre B·I·N·G·O, siempre en ese orden.</li>
-      <li>El primero en estampar las cinco letras canta <b>¡BINGO!</b> y gana.</li>
+      <li>El primero en estampar las cinco letras canta <b>¡BINGO!</b> y gana los <b>puntos en juego</b>.</li>
     </ol>
     <p class="tip">Consejo: llama números que te completen líneas a ti… y que a tu rival le sirvan de poco.</p>`);
       }
       function showExitConfirm() {
-        const online = S && S.mode === "online";
+        const online = S && S.mode === "online" && !S.over;
+        const cpu = S && S.mode === "cpu" && !S.over;
+        let extra = "";
+        if (online)
+          extra =
+            "Si sales, <b>" +
+            S.opp.name +
+            " se llevará el bote</b>" +
+            (S.stake ? " (" + S.stake * 2 + " pts)." : ".");
+        else if (cpu && S.stake)
+          extra = "Se te devolverán tus " + S.stake + " pts.";
         openModal(`
     <h3>¿Abandonar la partida?</h3>
-    <p class="big">${online ? "Se cerrará la conexión con tu rival." : "El progreso actual se perderá."}</p>
+    <p class="big">${extra || "El progreso actual se perderá."}</p>
     <div class="mbtns">
       <button class="btn ghost" id="mStay">Seguir jugando</button>
       <button class="btn" id="mLeave">Salir al menú</button>
     </div>`);
         $("#mStay").onclick = closeModal;
         $("#mLeave").onclick = () => {
+          if (online) netSend({ t: "quit" }); // el rival gana el bote
+          if (cpu && S.stake) walletAdd(S.stake); // contra la CPU hay devolución
           closeModal();
           netReset();
           goLobby();
@@ -2545,7 +3161,9 @@
         S = null;
         hideWin();
         closeModal();
+        $("#chatPanel").classList.add("hidden");
         setNetButtons(false);
+        updateWalletUI();
         $("#game").classList.add("hidden");
         $("#lobby").classList.remove("hidden");
       }
@@ -2574,7 +3192,22 @@
           x.classList.toggle("on", x === b),
         );
       });
+      document.querySelectorAll(".stak").forEach((seg) => {
+        seg.addEventListener("click", (e) => {
+          const b = e.target.closest("button");
+          if (!b || b.disabled) return;
+          selStake = +b.dataset.v;
+          sClick();
+          syncStakeUI();
+        });
+      });
+      $("#btnRecharge").addEventListener("click", () => {
+        sClick();
+        walletSet(100);
+      });
+
       $("#btnStartCpu").addEventListener("click", () => {
+        if (!ensureStake()) return;
         sClick();
         netReset();
         startMatch({
@@ -2585,6 +3218,7 @@
           myCard: buildCard(),
           oppCard: buildCard(),
           iCallFirst: Math.random() < 0.5,
+          stake: selStake,
         });
       });
       $("#btnCreate").addEventListener("click", () => {
@@ -2625,6 +3259,31 @@
         lucide.createIcons();
         if (soundOn) sClick();
       });
+      $("#btnChat").addEventListener("click", () => {
+        sClick();
+        toggleChat();
+      });
+      $("#btnChatClose").addEventListener("click", () => toggleChat(false));
+      $("#btnChatSend").addEventListener("click", () => {
+        sendChat($("#chatInput").value);
+        $("#chatInput").value = "";
+        $("#chatInput").focus();
+      });
+      $("#chatInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          sendChat($("#chatInput").value);
+          $("#chatInput").value = "";
+        }
+      });
+      QUICK_CHAT.forEach((q) => {
+        const b = document.createElement("button");
+        b.textContent = q;
+        b.addEventListener("click", () => {
+          sClick();
+          sendChat(q);
+        });
+        $("#chatQuick").appendChild(b);
+      });
       $("#btnHelp").addEventListener("click", () => {
         sClick();
         showRules();
@@ -2638,6 +3297,16 @@
       $("#btnRematch").addEventListener("click", () => {
         if (!S) return;
         sClick();
+        if (wallet() < Math.max(5, S.stake)) {
+          openModal(`<h3>Sin puntos</h3>
+      <p class="big">No tienes saldo para la revancha${S.stake ? " de " + S.stake + " pts" : ""}. Recarga para seguir.</p>
+      <div class="mbtns"><button class="btn" id="mRec3">Recargar 100</button></div>`);
+          $("#mRec3").onclick = () => {
+            walletSet(100);
+            closeModal();
+          };
+          return;
+        }
         if (S.mode === "cpu") {
           startMatch({
             mode: "cpu",
@@ -2647,6 +3316,7 @@
             myCard: buildCard(),
             oppCard: buildCard(),
             iCallFirst: Math.random() < 0.5,
+            stake: S.stake,
           });
           return;
         }
@@ -2664,6 +3334,9 @@
         goLobby();
       });
 
+      /* ================= INICIO ================= */
+      updateWalletUI();
+      syncStakeUI();
       lucide.createIcons();
     </script>
   </body>
