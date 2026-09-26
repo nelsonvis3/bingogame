@@ -1,0 +1,3439 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BINGO 1–25 · Llama y busca</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700;800&family=Caveat:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+      :root {
+        --felt: #1e5c41;
+        --felt-deep: #143d2b;
+        --paper: #f7f0df;
+        --paper-2: #efe4ca;
+        --paper-3: #fbf6ea;
+        --ink: #2a3038;
+        --ink-soft: #6f6753;
+        --red: #c23a21;
+        --red-deep: #8f2716;
+        --blue: #2456a6;
+        --blue-deep: #173a75;
+        --gold: #e3a92f;
+        --line: #d9cbab;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      button {
+        font: inherit;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: inherit;
+      }
+      input {
+        font: inherit;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: "Barlow Condensed", sans-serif;
+        color: var(--ink);
+        background-color: var(--felt);
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.06'/></svg>");
+        overflow-x: hidden;
+      }
+      .vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        box-shadow: inset 0 0 24vmax rgba(5, 24, 16, 0.55);
+        z-index: 1;
+      }
+      .view {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ============ LOBBY ============ */
+      #lobby {
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        padding: 44px 18px;
+        text-align: center;
+      }
+      .balls {
+        display: flex;
+        gap: 14px;
+      }
+      .bw {
+        animation: floaty 4.2s ease-in-out calc(var(--d) * 0.4s) infinite
+          alternate;
+      }
+      .ball {
+        --r: -5deg;
+        width: clamp(56px, 11vw, 88px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--paper);
+        position: relative;
+        display: grid;
+        place-items: center;
+        box-shadow:
+          inset 0 -9px 0 rgba(31, 42, 30, 0.1),
+          inset 0 5px 0 rgba(255, 255, 255, 0.75),
+          0 14px 22px rgba(4, 20, 13, 0.4);
+        transform: rotate(var(--r));
+        animation: drop 0.65s backwards cubic-bezier(0.2, 1.5, 0.4, 1);
+        animation-delay: calc(var(--d) * 95ms);
+        transition: transform 0.25s;
+        user-select: none;
+      }
+      .ball::before {
+        content: "";
+        position: absolute;
+        inset: 13%;
+        border-radius: 50%;
+        background: var(--paper-3);
+        box-shadow: inset 0 0 0 2.5px rgba(42, 48, 56, 0.18);
+      }
+      .ball span {
+        position: relative;
+        font-family: "Alfa Slab One";
+        font-size: clamp(24px, 5vw, 38px);
+        color: var(--bc);
+      }
+      .ball:hover {
+        transform: rotate(var(--r)) translateY(-8px);
+      }
+      @keyframes drop {
+        from {
+          transform: translateY(-140px) rotate(var(--r));
+          opacity: 0;
+        }
+      }
+      @keyframes floaty {
+        from {
+          transform: translateY(0);
+        }
+        to {
+          transform: translateY(-7px);
+        }
+      }
+
+      .tagline {
+        font-family: "Caveat";
+        font-weight: 600;
+        font-size: clamp(21px, 3.4vw, 29px);
+        color: var(--paper);
+        opacity: 0.92;
+        transform: rotate(-1.2deg);
+      }
+
+      .tickets {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        width: min(420px, 100%);
+        margin-top: 8px;
+      }
+      .ticket {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        background: var(--paper);
+        border-radius: 10px;
+        padding: 16px 52px 16px 16px;
+        box-shadow:
+          0 6px 0 rgba(9, 32, 22, 0.35),
+          0 14px 24px rgba(4, 20, 13, 0.35);
+        transition:
+          transform 0.18s,
+          box-shadow 0.18s;
+      }
+      .ticket::before,
+      .ticket::after {
+        content: "";
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--felt);
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .ticket::before {
+        left: -11px;
+      }
+      .ticket::after {
+        right: -11px;
+      }
+      .ticket:hover {
+        transform: translateY(-3px) rotate(-0.6deg);
+        box-shadow:
+          0 9px 0 rgba(9, 32, 22, 0.35),
+          0 18px 28px rgba(4, 20, 13, 0.4);
+      }
+      .ticket .perf {
+        position: absolute;
+        right: 38px;
+        top: 9px;
+        bottom: 9px;
+        border-left: 2px dashed #d3c5a4;
+      }
+      .ticket .ticon {
+        flex: 0 0 auto;
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        background: var(--ink);
+        color: var(--paper);
+        display: grid;
+        place-items: center;
+      }
+      .ticket .ticon svg {
+        width: 26px;
+        height: 26px;
+      }
+      .ticket h3 {
+        font-weight: 800;
+        font-size: 23px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .ticket p {
+        font-size: 16px;
+        color: var(--ink-soft);
+        font-weight: 500;
+        margin-top: 1px;
+      }
+      .ticket .tick {
+        position: absolute;
+        top: -11px;
+        right: -11px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--gold);
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.3);
+        opacity: 0;
+        transform: scale(0);
+        transition: 0.25s cubic-bezier(0.2, 1.6, 0.4, 1);
+        z-index: 3;
+      }
+      .ticket .tick svg {
+        width: 18px;
+        height: 18px;
+      }
+      .ticket.sel .tick {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .ticket.sel {
+        outline: 3px solid var(--gold);
+        outline-offset: 2px;
+      }
+
+      .setup {
+        width: min(420px, 100%);
+        background: rgba(6, 28, 19, 0.35);
+        border: 1.5px dashed rgba(247, 240, 223, 0.35);
+        border-radius: 14px;
+        padding: 18px;
+        text-align: left;
+        animation: rise 0.3s ease;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      .setup label {
+        display: block;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--paper);
+        opacity: 0.85;
+        margin: 14px 0 8px;
+      }
+      .setup label:first-child {
+        margin-top: 0;
+      }
+      .seg {
+        display: flex;
+        background: var(--paper);
+        border-radius: 9px;
+        padding: 4px;
+        gap: 4px;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.35);
+      }
+      .seg button {
+        flex: 1;
+        padding: 8px 2px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 17px;
+        letter-spacing: 0.03em;
+        color: var(--ink-soft);
+        transition: 0.15s;
+      }
+      .seg button.on {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .seg button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .walletline {
+        margin-top: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        color: rgba(247, 240, 223, 0.75);
+      }
+      .walletline b {
+        color: var(--gold);
+        font-size: 17px;
+        letter-spacing: 0.04em;
+      }
+      .setup input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 2px solid #cbbd9c;
+        background: var(--paper-3);
+        font-weight: 600;
+        font-size: 18px;
+        color: var(--ink);
+        outline: none;
+      }
+      .setup input:focus {
+        border-color: var(--red);
+      }
+      .setup .btn {
+        width: 100%;
+        margin-top: 16px;
+        font-size: 20px;
+      }
+      .or {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: rgba(247, 240, 223, 0.5);
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        font-size: 13px;
+        margin: 14px 0;
+      }
+      .or::before,
+      .or::after {
+        content: "";
+        flex: 1;
+        border-top: 1.5px dashed rgba(247, 240, 223, 0.3);
+      }
+      .joinrow {
+        display: flex;
+        gap: 8px;
+      }
+      .joinrow input {
+        flex: 1;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-weight: 800;
+        text-align: center;
+        font-size: 20px;
+        padding: 10px 8px;
+      }
+      .joinrow .btn {
+        width: auto;
+        margin-top: 0;
+        padding: 10px 18px;
+        font-size: 17px;
+      }
+      .netnote {
+        margin-top: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(247, 240, 223, 0.55);
+        line-height: 1.4;
+      }
+      .netstatus {
+        margin-top: 14px;
+        background: var(--paper);
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+        box-shadow: 0 4px 0 rgba(9, 32, 22, 0.35);
+        animation: rise 0.25s ease;
+      }
+      .netstatus.err {
+        outline: 2.5px solid var(--red);
+      }
+      .netstatus .bigcode {
+        font-family: "Alfa Slab One";
+        font-size: 38px;
+        letter-spacing: 0.18em;
+        color: var(--red);
+        margin: 4px 0 2px;
+      }
+      .netstatus .hint {
+        font-size: 15px;
+        color: var(--ink-soft);
+        font-weight: 600;
+      }
+      .netstatus .spin {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        border: 2.5px solid var(--paper-2);
+        border-top-color: var(--red);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: -2px;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .copyrow {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .copybtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        border: 1.5px solid var(--line);
+        border-radius: 7px;
+        padding: 6px 12px;
+        transition: 0.15s;
+      }
+      .copybtn:hover {
+        background: var(--paper-2);
+        color: var(--ink);
+      }
+      .copybtn svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .btn {
+        font-family: "Barlow Condensed";
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        background: var(--red);
+        color: var(--paper);
+        padding: 13px 30px;
+        border-radius: 10px;
+        box-shadow:
+          0 4px 0 var(--red-deep),
+          0 10px 18px rgba(4, 20, 13, 0.3);
+        transition:
+          transform 0.13s,
+          box-shadow 0.13s;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow:
+          0 6px 0 var(--red-deep),
+          0 13px 20px rgba(4, 20, 13, 0.32);
+      }
+      .btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 var(--red-deep);
+      }
+      .btn.ghost {
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow:
+          0 4px 0 #c6b795,
+          0 10px 18px rgba(4, 20, 13, 0.3);
+      }
+      .btn.ghost:hover {
+        box-shadow:
+          0 6px 0 #c6b795,
+          0 13px 20px rgba(4, 20, 13, 0.32);
+      }
+      .btn.ghost:active {
+        box-shadow: 0 1px 0 #c6b795;
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+        transform: none;
+      }
+
+      .rules-link {
+        font-family: "Caveat";
+        font-weight: 700;
+        font-size: 22px;
+        color: var(--paper);
+        border-bottom: 2px dashed rgba(247, 240, 223, 0.55);
+        padding-bottom: 1px;
+        opacity: 0.9;
+      }
+      .rules-link:hover {
+        opacity: 1;
+      }
+      .lobby-foot {
+        font-size: 14px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(247, 240, 223, 0.45);
+        font-weight: 600;
+      }
+
+      /* ============ JUEGO ============ */
+      #ghead {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        position: relative;
+        z-index: 5;
+      }
+      .logo-mini {
+        font-family: "Alfa Slab One";
+        font-size: 19px;
+        color: var(--paper);
+        letter-spacing: 0.05em;
+        text-shadow: 2px 2px 0 rgba(4, 20, 13, 0.4);
+      }
+      .roomchip {
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        font-size: 13px;
+        color: var(--paper);
+        border: 1.5px dashed rgba(247, 240, 223, 0.45);
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      .turn-pill {
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: var(--paper);
+        border-radius: 999px;
+        padding: 8px 18px;
+        box-shadow:
+          0 4px 0 rgba(9, 32, 22, 0.35),
+          0 8px 14px rgba(4, 20, 13, 0.28);
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 0.03em;
+      }
+      .turn-pill .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+        flex: 0 0 auto;
+      }
+      .turn-pill .round {
+        color: var(--ink-soft);
+        font-weight: 600;
+      }
+      .turn-pill.nudge {
+        animation: nudge 0.35s;
+      }
+      @keyframes nudge {
+        30% {
+          transform: rotate(-2deg) scale(1.05);
+        }
+        70% {
+          transform: rotate(2deg);
+        }
+      }
+      .dots {
+        display: inline-flex;
+        gap: 4px;
+        margin-left: 2px;
+      }
+      .dots i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ink-soft);
+        animation: blink 1s infinite;
+      }
+      .dots i:nth-child(2) {
+        animation-delay: 0.18s;
+      }
+      .dots i:nth-child(3) {
+        animation-delay: 0.36s;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 0.15;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      .chip-pts {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 800;
+        font-size: 16px;
+        border-radius: 999px;
+        padding: 7px 12px;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.35);
+      }
+      .chip-pts svg {
+        width: 15px;
+        height: 15px;
+        color: #a8741a;
+      }
+      .hbtns {
+        display: flex;
+        gap: 8px;
+      }
+      .ibtn {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--paper);
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.35);
+        transition: 0.15s;
+      }
+      .ibtn:hover {
+        transform: translateY(-2px) rotate(-4deg);
+      }
+      .ibtn svg {
+        width: 19px;
+        height: 19px;
+      }
+      .badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 17px;
+        height: 17px;
+        border-radius: 9px;
+        background: var(--red);
+        color: var(--paper);
+        font-size: 11px;
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+        padding: 0 4px;
+        border: 2px solid var(--paper);
+      }
+
+      #game main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 8px 16px 48px;
+        width: 100%;
+      }
+
+      .findbar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+      }
+      .tball {
+        width: 78px;
+        height: 78px;
+        border-radius: 50%;
+        background: var(--paper);
+        position: relative;
+        display: grid;
+        place-items: center;
+        box-shadow:
+          inset 0 -7px 0 rgba(31, 42, 30, 0.1),
+          inset 0 4px 0 rgba(255, 255, 255, 0.75),
+          0 10px 18px rgba(4, 20, 13, 0.35);
+      }
+      .tball::before {
+        content: "";
+        position: absolute;
+        inset: 12%;
+        border-radius: 50%;
+        background: var(--paper-3);
+        box-shadow: inset 0 0 0 2px rgba(42, 48, 56, 0.18);
+      }
+      .tball span {
+        position: relative;
+        font-family: "Alfa Slab One";
+        font-size: 31px;
+        color: var(--blue);
+      }
+      .findbar.mine .tball span {
+        color: var(--red);
+      }
+      .findbar.mine .tball {
+        animation: ringp 1.4s infinite;
+      }
+      @keyframes ringp {
+        0% {
+          box-shadow:
+            inset 0 -7px 0 rgba(31, 42, 30, 0.1),
+            inset 0 4px 0 rgba(255, 255, 255, 0.75),
+            0 10px 18px rgba(4, 20, 13, 0.35),
+            0 0 0 0 rgba(227, 169, 47, 0.55);
+        }
+        100% {
+          box-shadow:
+            inset 0 -7px 0 rgba(31, 42, 30, 0.1),
+            inset 0 4px 0 rgba(255, 255, 255, 0.75),
+            0 10px 18px rgba(4, 20, 13, 0.35),
+            0 0 0 22px rgba(227, 169, 47, 0);
+        }
+      }
+      .findlabel {
+        font-family: "Caveat";
+        font-weight: 700;
+        font-size: 21px;
+        color: var(--paper);
+        opacity: 0.95;
+        transform: rotate(-1deg);
+        text-shadow: 0 2px 0 rgba(4, 20, 13, 0.35);
+        text-align: center;
+      }
+
+      .opstrip {
+        position: relative;
+        width: min(520px, 100%);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: rgba(6, 28, 19, 0.35);
+        border: 1.5px dashed rgba(247, 240, 223, 0.3);
+        border-radius: 12px;
+        padding: 9px 12px;
+      }
+      .opstrip h2 {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--paper);
+      }
+      .pdot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--blue);
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+        flex: 0 0 auto;
+      }
+      .mslots {
+        display: flex;
+        gap: 5px;
+        margin-left: auto;
+      }
+      .mslot {
+        --pc: #9cc4ea;
+        position: relative;
+        width: 30px;
+        height: 30px;
+        border: 2px dashed rgba(247, 240, 223, 0.35);
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+      }
+      .mslot .base {
+        font-weight: 800;
+        font-size: 15px;
+        color: rgba(247, 240, 223, 0.4);
+        transition: opacity 0.2s;
+      }
+      .mslot.done .base {
+        opacity: 0;
+      }
+      .mslot .stamp {
+        position: absolute;
+        inset: -3px;
+        display: grid;
+        place-items: center;
+        font-family: "Alfa Slab One";
+        font-size: 15px;
+        color: var(--pc);
+        border: 2px solid var(--pc);
+        border-radius: 6px;
+        opacity: 0;
+        transform: scale(2.2) rotate(-14deg);
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+      .mslot.done .stamp {
+        animation: stampIn 0.5s cubic-bezier(0.2, 1.1, 0.3, 1) forwards;
+      }
+      .opstrip .lines-ct {
+        margin-left: 9px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: rgba(247, 240, 223, 0.7);
+        border: 1.5px solid rgba(247, 240, 223, 0.3);
+        border-radius: 6px;
+        padding: 2px 7px;
+      }
+
+      .card {
+        position: relative;
+        width: min(520px, 100%);
+        background: var(--paper);
+        border-radius: 12px;
+        border: 1px solid #dccfae;
+        box-shadow:
+          0 10px 22px rgba(4, 20, 13, 0.4),
+          0 2px 0 rgba(255, 255, 255, 0.5) inset;
+        transition:
+          transform 0.3s cubic-bezier(0.2, 1, 0.3, 1),
+          box-shadow 0.3s;
+        --pc: var(--red);
+      }
+      .card.active {
+        transform: translateY(-6px);
+        box-shadow: 0 18px 34px rgba(4, 20, 13, 0.5);
+      }
+      .card.thud {
+        animation: cardshake 0.35s;
+      }
+      .opstrip.thud {
+        animation: cardshake 0.35s;
+      }
+      @keyframes cardshake {
+        20% {
+          transform: translate(1px, 3px) rotate(0.3deg);
+        }
+        45% {
+          transform: translate(-2px, -1px);
+        }
+        70% {
+          transform: translate(1px, -2px) rotate(-0.3deg);
+        }
+      }
+
+      .chead {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 16px 2px;
+      }
+      .chead h2 {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .lines-ct {
+        margin-left: auto;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: var(--ink-soft);
+        border: 1.5px solid var(--line);
+        border-radius: 6px;
+        padding: 3px 8px;
+      }
+
+      .letters {
+        display: flex;
+        gap: 7px;
+        margin: 12px 14px 4px;
+      }
+      .lslot {
+        position: relative;
+        flex: 1;
+        height: 50px;
+        border: 2px dashed #cdbf9e;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+      }
+      .lslot .base {
+        font-weight: 800;
+        font-size: 24px;
+        color: #c3b48d;
+        transition: opacity 0.2s;
+      }
+      .lslot.done .base {
+        opacity: 0;
+      }
+      .stamp {
+        position: absolute;
+        inset: -4px;
+        display: grid;
+        place-items: center;
+        font-family: "Alfa Slab One";
+        font-size: 26px;
+        color: var(--pc);
+        border: 3px solid var(--pc);
+        border-radius: 8px;
+        opacity: 0;
+        transform: scale(2.4) rotate(-15deg);
+        mix-blend-mode: multiply;
+        pointer-events: none;
+      }
+      .stamp::after {
+        content: "";
+        position: absolute;
+        inset: 2.5px;
+        border: 1.5px solid var(--pc);
+        border-radius: 5px;
+      }
+      .lslot.done .stamp {
+        animation: stampIn 0.5s cubic-bezier(0.2, 1.1, 0.3, 1) forwards;
+      }
+      @keyframes stampIn {
+        0% {
+          opacity: 0;
+          transform: scale(2.4) rotate(-15deg);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(0.94) rotate(-8deg);
+        }
+        80% {
+          transform: scale(1.06) rotate(-9deg);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) rotate(-8deg);
+        }
+      }
+
+      .grid5 {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 7px;
+        padding: 12px 14px 14px;
+      }
+      .cell {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background: var(--paper-3);
+        border: 1.5px solid #ddd0b0;
+        display: grid;
+        place-items: center;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+          background 0.15s,
+          transform 0.12s;
+      }
+      .card.active .cell:not(.marked):hover {
+        background: var(--paper-2);
+        transform: translateY(-1.5px);
+      }
+      .card.active .cell:not(.marked):active {
+        transform: scale(0.94);
+      }
+      .cell .num {
+        font-weight: 700;
+        font-size: clamp(20px, 4.6vw, 32px);
+        color: var(--ink);
+        position: relative;
+        z-index: 2;
+        transition:
+          color 0.3s,
+          transform 0.3s;
+      }
+      .cell.marked {
+        cursor: default;
+      }
+      .cell.marked .num {
+        color: var(--pc);
+        transform: scale(0.9);
+      }
+      .scrib {
+        position: absolute;
+        inset: 5%;
+        z-index: 3;
+        pointer-events: none;
+        transform: rotate(var(--rot, 0deg));
+        overflow: visible;
+      }
+      .scrib path {
+        fill: none;
+        stroke: var(--pc);
+        stroke-width: 7;
+        stroke-linecap: round;
+        opacity: 0.85;
+      }
+      .cell.fl {
+        animation: lineflash 0.5s ease 2;
+      }
+      @keyframes lineflash {
+        50% {
+          background: #f6e2b0;
+          box-shadow: inset 0 0 0 3px var(--gold);
+        }
+      }
+      .cell.nope {
+        animation: deny 0.3s;
+      }
+      @keyframes deny {
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      .fnote {
+        position: absolute;
+        top: 42%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 6;
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: 0.03em;
+        padding: 8px 17px;
+        border-radius: 999px;
+        border: 2.5px solid var(--pc);
+        box-shadow: 0 8px 18px rgba(4, 20, 13, 0.4);
+        white-space: nowrap;
+        max-width: 92%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        animation: fnoteUp 1.65s ease forwards;
+        pointer-events: none;
+      }
+      @keyframes fnoteUp {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -30%) scale(0.7);
+        }
+        15% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.05);
+        }
+        25% {
+          transform: translate(-50%, -50%) scale(1);
+        }
+        75% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -135%);
+        }
+      }
+
+      /* ============ CHAT DE SALA ============ */
+      .chatpanel {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: min(520px, 100%);
+        background: var(--paper);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -12px 40px rgba(3, 15, 10, 0.5);
+        z-index: 45;
+        display: flex;
+        flex-direction: column;
+        max-height: 62vh;
+        animation: chatup 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+      }
+      @keyframes chatup {
+        from {
+          transform: translate(-50%, 60px);
+          opacity: 0;
+        }
+      }
+      .chathead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 14px 9px 16px;
+        border-bottom: 1.5px dashed var(--line);
+      }
+      .chathead h3 {
+        font-family: "Alfa Slab One";
+        font-size: 17px;
+        letter-spacing: 0.03em;
+        font-weight: 400;
+      }
+      .chathead .cname {
+        margin-left: auto;
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--ink-soft);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      #chatList {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        min-height: 110px;
+      }
+      .cmsg {
+        display: flex;
+      }
+      .cmsg.me {
+        justify-content: flex-end;
+      }
+      .cbub {
+        max-width: 80%;
+        padding: 7px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16.5px;
+        line-height: 1.3;
+        word-break: break-word;
+        box-shadow: 0 2px 0 rgba(9, 32, 22, 0.12);
+      }
+      .cmsg.op .cbub {
+        background: var(--paper-2);
+        border: 1.5px solid var(--line);
+        border-bottom-left-radius: 4px;
+        color: var(--blue-deep);
+      }
+      .cmsg.me .cbub {
+        background: var(--red);
+        color: var(--paper);
+        border-bottom-right-radius: 4px;
+      }
+      .quick {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px 4px;
+        overflow-x: auto;
+      }
+      .quick button {
+        flex: 0 0 auto;
+        font-weight: 700;
+        font-size: 14.5px;
+        color: var(--ink-soft);
+        border: 1.5px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 12px;
+        background: var(--paper-3);
+        transition: 0.15s;
+      }
+      .quick button:hover {
+        background: var(--paper-2);
+        color: var(--ink);
+      }
+      .chatin {
+        display: flex;
+        gap: 8px;
+        padding: 10px 12px 14px;
+      }
+      .chatin input {
+        flex: 1;
+        border: 2px solid #cbbd9c;
+        border-radius: 9px;
+        padding: 9px 12px;
+        background: var(--paper-3);
+        font-weight: 600;
+        font-size: 16.5px;
+        outline: none;
+        min-width: 0;
+      }
+      .chatin input:focus {
+        border-color: var(--red);
+      }
+      .chatin .btn {
+        padding: 9px 16px;
+        font-size: 16px;
+      }
+
+      /* ============ OVERLAYS ============ */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(8, 24, 17, 0.66);
+        backdrop-filter: blur(3px);
+      }
+      .panel {
+        position: relative;
+        background: var(--paper);
+        border-radius: 16px;
+        width: min(520px, 100%);
+        padding: 34px 30px 28px;
+        text-align: center;
+        box-shadow: 0 30px 60px rgba(3, 15, 10, 0.55);
+        animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.35, 1);
+        max-height: 88vh;
+        overflow: auto;
+      }
+      @keyframes pop {
+        from {
+          transform: scale(0.7) rotate(2deg);
+          opacity: 0;
+        }
+      }
+      .mclose {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: var(--ink-soft);
+      }
+      .mclose:hover {
+        background: var(--paper-2);
+        color: var(--ink);
+      }
+      .mclose svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .wbanner {
+        display: inline-block;
+        font-family: "Alfa Slab One";
+        font-size: clamp(38px, 8vw, 58px);
+        line-height: 1;
+        color: var(--wc, var(--red));
+        border: 5px solid currentColor;
+        border-radius: 14px;
+        padding: 10px 26px 6px;
+        position: relative;
+        transform: rotate(-5deg);
+        animation: stampIn2 0.55s 0.2s cubic-bezier(0.2, 1.1, 0.3, 1) backwards;
+      }
+      .wbanner::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border: 2px solid currentColor;
+        border-radius: 8px;
+      }
+      @keyframes stampIn2 {
+        0% {
+          opacity: 0;
+          transform: scale(2.6) rotate(-18deg);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(0.92) rotate(-4deg);
+        }
+        80% {
+          transform: scale(1.06) rotate(-6deg);
+        }
+        100% {
+          transform: scale(1) rotate(-5deg);
+        }
+      }
+      .wwin {
+        margin-top: 20px;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .wwin b {
+        color: var(--wc, var(--red));
+      }
+      .wsub {
+        font-family: "Caveat";
+        font-weight: 600;
+        font-size: 24px;
+        color: var(--ink-soft);
+        margin-top: 2px;
+      }
+      .wpts {
+        display: inline-block;
+        margin-top: 12px;
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: 0.06em;
+        color: #8a6410;
+        border: 2px dashed var(--gold);
+        border-radius: 999px;
+        padding: 5px 18px;
+        background: #fbf2da;
+      }
+      .wbtns {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 22px;
+        flex-wrap: wrap;
+      }
+
+      .mini-stamps {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 14px;
+      }
+      .mini-stamps span {
+        font-family: "Alfa Slab One";
+        font-size: 20px;
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border: 2.5px solid var(--ink);
+        border-radius: 7px;
+        color: var(--ink);
+        transform: rotate(-4deg);
+        position: relative;
+      }
+      .mini-stamps span:nth-child(even) {
+        transform: rotate(3deg);
+        color: var(--red);
+        border-color: var(--red);
+      }
+      .mini-stamps span::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border: 1px solid currentColor;
+        border-radius: 4px;
+      }
+      #modalBody h3 {
+        font-family: "Alfa Slab One";
+        font-size: 26px;
+        margin-bottom: 14px;
+      }
+      #modalBody ol {
+        text-align: left;
+        list-style: none;
+        counter-reset: paso;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #modalBody ol li {
+        counter-increment: paso;
+        position: relative;
+        padding-left: 44px;
+        font-size: 17px;
+        font-weight: 500;
+        line-height: 1.45;
+        color: #3a4049;
+      }
+      #modalBody ol li::before {
+        content: counter(paso);
+        position: absolute;
+        left: 0;
+        top: 1px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: var(--paper);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 16px;
+      }
+      #modalBody .mbtns {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 22px;
+        flex-wrap: wrap;
+      }
+      #modalBody p.big {
+        font-size: 19px;
+        font-weight: 500;
+        margin-top: 6px;
+      }
+      #modalBody .tip {
+        font-family: "Caveat";
+        font-weight: 700;
+        font-size: 21px;
+        color: var(--ink-soft);
+        margin-top: 16px;
+        transform: rotate(-1deg);
+      }
+
+      #confetti {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="vignette"></div>
+    <canvas id="confetti"></canvas>
+
+    <!-- ============ LOBBY ============ -->
+    <section id="lobby" class="view">
+      <div class="balls">
+        <div class="bw" style="--d: 0">
+          <div class="ball" style="--d: 0; --r: -6deg; --bc: var(--red)">
+            <span>B</span>
+          </div>
+        </div>
+        <div class="bw" style="--d: 1">
+          <div class="ball" style="--d: 1; --r: 4deg; --bc: var(--blue)">
+            <span>I</span>
+          </div>
+        </div>
+        <div class="bw" style="--d: 2">
+          <div class="ball" style="--d: 2; --r: -3deg; --bc: var(--ink)">
+            <span>N</span>
+          </div>
+        </div>
+        <div class="bw" style="--d: 3">
+          <div class="ball" style="--d: 3; --r: 5deg; --bc: var(--blue)">
+            <span>G</span>
+          </div>
+        </div>
+        <div class="bw" style="--d: 4">
+          <div class="ball" style="--d: 4; --r: -5deg; --bc: var(--red)">
+            <span>O</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="tagline">
+        llama un número · el rival lo busca · estampa el bingo
+      </p>
+
+      <div class="tickets">
+        <button class="ticket" id="tkCpu">
+          <span class="ticon"><i data-lucide="bot"></i></span>
+          <span
+            ><h3>Contra la computadora</h3>
+            <p>Llama números y gánale a la máquina</p></span
+          >
+          <span class="perf"></span>
+          <span class="tick"><i data-lucide="check"></i></span>
+        </button>
+        <button class="ticket" id="tkNet">
+          <span class="ticon"><i data-lucide="wifi"></i></span>
+          <span
+            ><h3>1 vs 1 en línea</h3>
+            <p>Un código de 4 letras y a jugar</p></span
+          >
+          <span class="perf"></span>
+          <span class="tick"><i data-lucide="check"></i></span>
+        </button>
+      </div>
+
+      <div class="setup hidden" id="setupCpu">
+        <label>Dificultad de la CPU</label>
+        <div class="seg" id="segDiff">
+          <button data-d="easy">Fácil</button>
+          <button data-d="medium" class="on">Media</button>
+          <button data-d="hard">Difícil</button>
+        </div>
+        <label>Puntos en juego</label>
+        <div class="seg stak" id="segStakeCpu">
+          <button data-v="5" class="on">5</button>
+          <button data-v="15">15</button>
+          <button data-v="25">25</button>
+          <button data-v="50">50</button>
+          <button data-v="100">100</button>
+        </div>
+        <p class="walletline">
+          Tus puntos: <b class="ptsval">100</b> · si ganas te llevas el bote
+        </p>
+        <button class="btn" id="btnStartCpu">Repartir cartón</button>
+      </div>
+
+      <div class="setup hidden" id="setupNet">
+        <label>Tu nombre</label>
+        <input type="text" id="nameOnline" maxlength="12" value="Jugador 1" />
+        <label
+          >Puntos en juego
+          <small style="opacity: 0.6; text-transform: none; letter-spacing: 0"
+            >(los fija quien crea la sala)</small
+          ></label
+        >
+        <div class="seg stak" id="segStakeNet">
+          <button data-v="5" class="on">5</button>
+          <button data-v="15">15</button>
+          <button data-v="25">25</button>
+          <button data-v="50">50</button>
+          <button data-v="100">100</button>
+        </div>
+        <p class="walletline">Tus puntos: <b class="ptsval">100</b></p>
+        <button class="btn" id="btnCreate">Crear sala</button>
+        <div class="or">O ÚNETE A UNA</div>
+        <div class="joinrow">
+          <input
+            type="text"
+            id="codeInput"
+            maxlength="4"
+            placeholder="CÓDIGO"
+            autocomplete="off"
+          />
+          <button class="btn" id="btnJoin">Unirse</button>
+        </div>
+        <div id="netStatus" class="netstatus hidden"></div>
+        <p class="netnote">
+          Ambos navegadores se conectan a TODOS los servidores de mensajes a la
+          vez. Funciona igual en la misma WiFi, en redes distintas o con datos
+          móviles. Nota: quien crea la sala debe dejar la pantalla del juego
+          abierta y visible — los celulares pausan la conexión al cambiar de
+          app.
+        </p>
+      </div>
+
+      <button
+        class="btn ghost hidden"
+        id="btnRecharge"
+        style="width: min(420px, 100%)"
+      >
+        Sin puntos · recargar 100
+      </button>
+      <button class="rules-link" id="btnRules">¿cómo se juega?</button>
+      <p class="lobby-foot">
+        Números del 1 al 25 · Cartones iguales, distinto orden
+      </p>
+    </section>
+
+    <!-- ============ JUEGO ============ -->
+    <section id="game" class="view hidden">
+      <header id="ghead">
+        <div class="logo-mini">BINGO</div>
+        <div class="roomchip hidden" id="roomChip"></div>
+        <div class="turn-pill" id="turnPill">
+          <span class="dot" id="turnDot"></span>
+          <span id="turnText">Preparando…</span>
+          <span class="dots hidden" id="pillDots"><i></i><i></i><i></i></span>
+          <span class="round" id="roundTxt"></span>
+        </div>
+        <div class="chip-pts" title="Tus puntos">
+          <i data-lucide="coins"></i><span id="walletVal">100</span>
+        </div>
+        <div class="hbtns">
+          <button class="ibtn" id="btnSound" title="Sonido">
+            <i data-lucide="volume-2"></i>
+          </button>
+          <button class="ibtn hidden" id="btnChat" title="Charla de sala">
+            <i data-lucide="message-circle"></i
+            ><span class="badge hidden" id="chatBadge"></span>
+          </button>
+          <button class="ibtn" id="btnHelp" title="Reglas">
+            <i data-lucide="help-circle"></i>
+          </button>
+          <button class="ibtn" id="btnExit" title="Salir al menú">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <div id="findbar" class="findbar hidden">
+          <div class="tball" id="tball"><span id="tballNum"></span></div>
+          <div class="findlabel" id="findLabel"></div>
+        </div>
+
+        <div class="opstrip" id="opstrip">
+          <span class="pdot"></span>
+          <h2 id="oppName">Rival</h2>
+          <div class="mslots" id="mslots"></div>
+          <span class="lines-ct" id="oppCt">0/5</span>
+        </div>
+
+        <section class="card" id="card0">
+          <div class="chead">
+            <h2 id="name0">Tú</h2>
+            <span class="lines-ct" id="ct0">0/5</span>
+          </div>
+          <div class="letters" id="letters0"></div>
+          <div class="grid5" id="grid0"></div>
+        </section>
+      </main>
+    </section>
+
+    <!-- ============ CHAT DE SALA ============ -->
+    <div id="chatPanel" class="chatpanel hidden">
+      <div class="chathead">
+        <h3>Charla de sala</h3>
+        <span class="cname" id="chatWith">RIVAL</span>
+        <button class="ibtn" id="btnChatClose" title="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div id="chatList"></div>
+      <div class="quick" id="chatQuick"></div>
+      <div class="chatin">
+        <input
+          type="text"
+          id="chatInput"
+          maxlength="120"
+          placeholder="Escribe algo…"
+          autocomplete="off"
+        />
+        <button class="btn" id="btnChatSend">Enviar</button>
+      </div>
+    </div>
+
+    <!-- ============ VICTORIA ============ -->
+    <div id="win" class="overlay hidden">
+      <div class="panel" id="winPanel">
+        <div class="wbanner" id="wbanner">¡BINGO!</div>
+        <p class="wwin">Ganó <b id="wname">Tú</b></p>
+        <p class="wsub" id="wstats"></p>
+        <p class="wpts hidden" id="wpts"></p>
+        <div class="wbtns">
+          <button class="btn" id="btnRematch">Revancha</button>
+          <button class="btn ghost" id="btnMenu2">Menú</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MODAL GENÉRICO ============ -->
+    <div id="modal" class="overlay hidden">
+      <div class="panel">
+        <button class="mclose" id="mclose"><i data-lucide="x"></i></button>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <script>
+      /* ================= CONSTANTES ================= */
+      const LETTERS = ["B", "I", "N", "G", "O"];
+      const RED = "#c23a21",
+        BLUE = "#2456a6",
+        GOLD = "#e3a92f";
+      const CONF_COLORS = [
+        "#c23a21",
+        "#2456a6",
+        "#e3a92f",
+        "#f7f0df",
+        "#3c8a63",
+      ];
+      const STAKES = [5, 15, 25, 50, 100];
+      const QUICK_CHAT = [
+        "¡Buena!",
+        "¡Qué ojo!",
+        "Jajaja",
+        "Casi…",
+        "Suerte",
+        "¿Revancha?",
+      ];
+
+      const LINES = [];
+      for (let r = 0; r < 5; r++)
+        LINES.push([0, 1, 2, 3, 4].map((c) => r * 5 + c));
+      for (let c = 0; c < 5; c++)
+        LINES.push([0, 1, 2, 3, 4].map((r) => r * 5 + c));
+      LINES.push([0, 6, 12, 18, 24], [4, 8, 12, 16, 20]);
+
+      const $ = (s) => document.querySelector(s);
+
+      /* ================= ESTADO ================= */
+      let S = null;
+      let selDiff = "medium";
+      let selStake = 5;
+      let soundOn = true;
+
+      /* ================= AUDIO (WebAudio, sin archivos) ================= */
+      let audioCtx = null;
+      function ac() {
+        if (!audioCtx)
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+      }
+      document.addEventListener(
+        "pointerdown",
+        () => {
+          try {
+            ac().resume();
+          } catch (e) {}
+        },
+        { once: true },
+      );
+
+      function tone(f0, f1, dur, type = "sine", vol = 0.2, delay = 0) {
+        if (!soundOn) return;
+        try {
+          const c = ac(),
+            t = c.currentTime + delay;
+          const o = c.createOscillator(),
+            g = c.createGain();
+          o.type = type;
+          o.frequency.setValueAtTime(f0, t);
+          if (f1 !== f0)
+            o.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), t + dur);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g).connect(c.destination);
+          o.start(t);
+          o.stop(t + dur + 0.05);
+        } catch (e) {}
+      }
+      function noiseBurst(dur = 0.07, vol = 0.3, delay = 0) {
+        if (!soundOn) return;
+        try {
+          const c = ac(),
+            t = c.currentTime + delay;
+          const buf = c.createBuffer(
+            1,
+            Math.max(1, (c.sampleRate * dur) | 0),
+            c.sampleRate,
+          );
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++)
+            d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+          const src = c.createBufferSource();
+          src.buffer = buf;
+          const g = c.createGain();
+          g.gain.value = vol;
+          src.connect(g).connect(c.destination);
+          src.start(t);
+        } catch (e) {}
+      }
+      const sScrib = () => {
+        noiseBurst(0.06, 0.18);
+        noiseBurst(0.045, 0.1, 0.055);
+      };
+      const sStamp = () => {
+        noiseBurst(0.07, 0.32);
+        tone(150, 55, 0.16, "square", 0.26);
+      };
+      const sPop = () => tone(340, 560, 0.09, "sine", 0.15);
+      const sClick = () => tone(950, 720, 0.05, "square", 0.06);
+      const sDeny = () => tone(160, 110, 0.09, "square", 0.12);
+      const sMsg = () => tone(520, 780, 0.08, "sine", 0.12);
+      const sWin = () => {
+        [523, 659, 784, 1047, 1319].forEach((f, i) =>
+          tone(f, f, 0.22, "triangle", 0.2, i * 0.11),
+        );
+        noiseBurst(0.35, 0.1, 0.55);
+      };
+      const sLose = () => tone(330, 165, 0.5, "sine", 0.16);
+
+      /* ================= PUNTOS (billetera local hasta tener backend) ================= */
+      const WKEY = "bingo25_wallet_v1";
+      function wallet() {
+        const v = parseInt(localStorage.getItem(WKEY), 10);
+        return Number.isFinite(v) ? v : 100;
+      }
+      function walletSet(v) {
+        v = Math.max(0, v | 0);
+        try {
+          localStorage.setItem(WKEY, String(v));
+        } catch (e) {}
+        updateWalletUI();
+      }
+      function walletAdd(n) {
+        walletSet(wallet() + n);
+      }
+      function bestStake(v) {
+        let b = 0;
+        for (const s of STAKES) if (s <= v) b = s;
+        return b;
+      }
+      function validStake(v) {
+        return STAKES.includes(v) ? v : 5;
+      }
+      function updateWalletUI() {
+        const v = wallet();
+        $("#walletVal").textContent = v;
+        document
+          .querySelectorAll(".ptsval")
+          .forEach((el) => (el.textContent = v));
+        $("#btnRecharge").classList.toggle("hidden", v >= 5);
+        document.querySelectorAll(".stak button").forEach((b) => {
+          const can = +b.dataset.v <= v;
+          b.disabled = !can;
+        });
+        if (selStake > v) {
+          selStake = bestStake(v);
+          syncStakeUI();
+        }
+      }
+      function syncStakeUI() {
+        document
+          .querySelectorAll(".stak button")
+          .forEach((b) => b.classList.toggle("on", +b.dataset.v === selStake));
+      }
+      function ensureStake() {
+        if (wallet() >= Math.max(5, selStake)) return true;
+        openModal(`<h3>Sin puntos</h3>
+    <p class="big">Te quedaste sin puntos. Recarga para seguir jugando.</p>
+    <div class="mbtns"><button class="btn" id="mRecharge2">Recargar 100</button></div>`);
+        $("#mRecharge2").onclick = () => {
+          sClick();
+          walletSet(100);
+          closeModal();
+        };
+        return false;
+      }
+
+      /* ================= CARTONES: mismos números (1-25), orden distinto ================= */
+      function shuffle(a) {
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = (Math.random() * (i + 1)) | 0;
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+      function buildCard() {
+        return shuffle([...Array(25)].map((_, k) => k + 1));
+      }
+
+      /* ================= RENDER ================= */
+      function buildBoard() {
+        const grid = $("#grid0");
+        grid.innerHTML = "";
+        S.me.cells = [];
+        S.me.card.forEach((n, i) => {
+          const b = document.createElement("button");
+          b.className = "cell";
+          b.setAttribute("aria-label", "Número " + n);
+          b.innerHTML = `<span class="num">${n}</span>
+      <svg class="scrib" viewBox="0 0 100 100" preserveAspectRatio="none" style="--rot:${(Math.random() * 8 - 4).toFixed(1)}deg">
+        <path d="M52 10 C 80 8, 93 30, 90 52 C 87 77, 66 92, 45 90 C 21 88, 8 69, 10 46 C 12 24, 30 11, 56 12 C 74 13, 86 26, 89 40"/>
+      </svg>`;
+          const path = b.querySelector("path");
+          const L = path.getTotalLength();
+          path.style.strokeDasharray = L;
+          path.style.strokeDashoffset = L;
+          b.addEventListener("click", () => onCell(i));
+          grid.appendChild(b);
+          S.me.cells.push(b);
+        });
+      }
+      function buildMyLetters() {
+        const box = $("#letters0");
+        box.innerHTML = "";
+        LETTERS.forEach((ch) => {
+          const s = document.createElement("div");
+          s.className = "lslot";
+          s.innerHTML = `<span class="base">${ch}</span><div class="stamp">${ch}</div>`;
+          box.appendChild(s);
+        });
+      }
+      function buildMiniSlots() {
+        const box = $("#mslots");
+        box.innerHTML = "";
+        LETTERS.forEach((ch) => {
+          const s = document.createElement("div");
+          s.className = "mslot";
+          s.innerHTML = `<span class="base">${ch}</span><div class="stamp">${ch}</div>`;
+          box.appendChild(s);
+        });
+      }
+
+      /* ================= FLUJO DE PARTIDA ================= */
+      function startMatch(o) {
+        S = {
+          mode: o.mode,
+          diff: o.diff || "medium",
+          stake: o.stake || 0,
+          token: (S ? S.token : 0) + 1,
+          over: false,
+          phase: "myCall",
+          target: null,
+          chat: [],
+          unread: 0,
+          me: {
+            name: o.myName,
+            card: o.myCard,
+            marked: Array(25).fill(false),
+            linesDone: [],
+            letters: 0,
+            cells: [],
+          },
+          opp: {
+            name: o.oppName,
+            card: o.oppCard,
+            marked: Array(25).fill(false),
+            linesDone: [],
+            letters: 0,
+          },
+        };
+        rematch = { me: false, opp: false };
+        if (S.stake) walletAdd(-S.stake); // ambos dejan su apuesta sobre la mesa
+        if (o.mode === "online") {
+          net.lastSeen = Date.now();
+          pedirWakeLock();
+        }
+        $("#lobby").classList.add("hidden");
+        $("#game").classList.remove("hidden");
+        hideWin();
+        closeModal();
+        $("#roomChip").classList.toggle("hidden", o.mode !== "online");
+        if (o.mode === "online")
+          $("#roomChip").textContent = "SALA " + net.code;
+        $("#btnChat").classList.toggle("hidden", o.mode !== "online");
+        $("#chatPanel").classList.add("hidden");
+        updateChatBadge();
+        $("#chatWith").textContent = S.opp.name.toUpperCase();
+        $("#oppName").textContent = S.opp.name;
+        $("#name0").textContent = S.me.name;
+        buildBoard();
+        buildMyLetters();
+        buildMiniSlots();
+        updateCounts();
+        setPhase(o.iCallFirst ? "myCall" : "oppCall");
+      }
+
+      function setPhase(p) {
+        if (!S) return;
+        S.phase = p;
+        if (p === "myCall") S.target = null;
+        updateStatusUI();
+        if (p === "oppFind") scheduleOppFind();
+        else if (p === "oppCall") scheduleOppCall();
+      }
+
+      function onCell(i) {
+        if (!S || S.over) return;
+        const cell = S.me.cells[i];
+        if (S.phase === "myCall") {
+          if (S.me.marked[i]) {
+            deny(cell);
+            return;
+          }
+          doMyCall(i);
+        } else if (S.phase === "myFind") {
+          if (S.me.marked[i]) {
+            deny(cell);
+            return;
+          }
+          if (S.me.card[i] === S.target) {
+            doMyFound(i);
+          } else {
+            deny(cell);
+            sDeny();
+          }
+        } else {
+          deny(cell);
+          nudgePill();
+        }
+      }
+      function deny(cell) {
+        cell.classList.remove("nope");
+        void cell.offsetWidth;
+        cell.classList.add("nope");
+      }
+      function nudgePill() {
+        const pl = $("#turnPill");
+        pl.classList.remove("nudge");
+        void pl.offsetWidth;
+        pl.classList.add("nudge");
+      }
+
+      function doMyCall(i) {
+        const n = S.me.card[i];
+        netSend({ t: "call", n });
+        scribble(i);
+        applyMark("me", i);
+        if (S.over) return;
+        S.target = n;
+        setPhase("oppFind");
+      }
+      function doMyFound(i) {
+        const n = S.target;
+        netSend({ t: "found", n });
+        scribble(i);
+        applyMark("me", i);
+        if (S.over) return;
+        setPhase("myCall");
+      }
+
+      function scribble(i) {
+        const cell = S.me.cells[i],
+          path = cell.querySelector("path");
+        path.style.transition =
+          "stroke-dashoffset .5s cubic-bezier(.25,.6,.3,1)";
+        requestAnimationFrame(() => (path.style.strokeDashoffset = 0));
+        cell.classList.add("marked");
+        sScrib();
+      }
+
+      function applyMark(who, i) {
+        const P = S[who];
+        if (P.marked[i]) return;
+        P.marked[i] = true;
+        const newLines = [];
+        LINES.forEach((L, idx) => {
+          if (!L.includes(i) || P.linesDone.includes(idx)) return;
+          if (L.every((x) => P.marked[x])) newLines.push(idx);
+        });
+        if (newLines.length) {
+          const startIdx = P.letters;
+          P.linesDone.push(...newLines);
+          P.letters += newLines.length;
+          stampLetters(who, startIdx, newLines.length);
+          if (who === "me") {
+            newLines.forEach((idx) => flashLine(idx));
+            floatNote(
+              $("#card0"),
+              newLines.length === 1
+                ? "¡Línea! Letra " + LETTERS[startIdx]
+                : "¡Doble línea! +" + newLines.length + " letras",
+              RED,
+            );
+          } else {
+            floatNote($("#opstrip"), S.opp.name + " cantó línea", BLUE);
+          }
+        }
+        updateCounts();
+        if (P.letters >= 5) win(who);
+      }
+
+      function flashLine(idx) {
+        LINES[idx].forEach((x) => {
+          const c = S.me.cells[x];
+          c.classList.add("fl");
+          setTimeout(() => c.classList.remove("fl"), 1100);
+        });
+      }
+      function stampLetters(who, startIdx, count) {
+        const box = who === "me" ? $("#letters0") : $("#mslots");
+        const thud = who === "me" ? $("#card0") : $("#opstrip");
+        for (let k = 0; k < count; k++) {
+          const slot = box.children[startIdx + k];
+          if (!slot) break;
+          slot.classList.add("done");
+          slot.querySelector(".stamp").style.animationDelay = k * 0.28 + "s";
+          setTimeout(sStamp, 260 + k * 280);
+          setTimeout(
+            () => {
+              thud.classList.remove("thud");
+              void thud.offsetWidth;
+              thud.classList.add("thud");
+            },
+            280 + k * 280,
+          );
+        }
+      }
+      function floatNote(el, text, pen, dur = 1650) {
+        const n = document.createElement("div");
+        n.className = "fnote";
+        n.textContent = text;
+        n.style.borderColor = pen;
+        n.style.animationDuration = dur + "ms";
+        el.appendChild(n);
+        setTimeout(() => n.remove(), dur + 60);
+      }
+      function updateCounts() {
+        $("#ct0").textContent = S.me.letters + "/5";
+        $("#oppCt").textContent = S.opp.letters + "/5";
+      }
+
+      /* ================= INTERFAZ DE ESTADO ================= */
+      function updateStatusUI() {
+        if (!S) return;
+        const p = S.phase;
+        $("#turnDot").style.background =
+          p === "myCall"
+            ? RED
+            : p === "myFind"
+              ? GOLD
+              : p === "over"
+                ? "#8a8674"
+                : BLUE;
+        let txt = "",
+          dots = false,
+          ball = null;
+        if (p === "myCall") {
+          txt = "Tu turno · llama un número";
+        } else if (p === "myFind") {
+          txt = "¡Encuentra el número!";
+          ball = "me";
+        } else if (p === "oppFind") {
+          txt = S.opp.name + " lo está buscando";
+          dots = true;
+          ball = "opp";
+        } else if (p === "oppCall") {
+          txt = S.opp.name + " está llamando";
+          dots = true;
+        } else {
+          txt = "Partida terminada";
+        }
+        $("#turnText").textContent = txt;
+        $("#pillDots").classList.toggle("hidden", !dots);
+
+        const fb = $("#findbar");
+        if (ball) {
+          fb.classList.remove("hidden");
+          $("#tballNum").textContent = S.target;
+          fb.classList.toggle("mine", ball === "me");
+          $("#findLabel").textContent =
+            ball === "me"
+              ? "búscalo en tu cartón y tócalo"
+              : "llamaste el " + S.target + " · " + S.opp.name + " lo busca";
+        } else {
+          fb.classList.add("hidden");
+        }
+        $("#card0").classList.toggle(
+          "active",
+          p === "myCall" || p === "myFind",
+        );
+        const plays = S.me.marked.filter(Boolean).length;
+        $("#roundTxt").textContent = "· Jugada " + (plays + 1);
+      }
+
+      /* ================= TURNO DEL RIVAL (solo CPU) ================= */
+      function scheduleOppFind() {
+        updateStatusUI();
+        if (S.mode !== "cpu") return;
+        const tok = S.token,
+          n = S.target;
+        setTimeout(() => {
+          if (!S || S.token !== tok || S.over || S.phase !== "oppFind") return;
+          sPop();
+          applyMark("opp", S.opp.card.indexOf(n));
+          if (S.over) return;
+          setPhase("oppCall");
+        }, cpuFindDelay());
+      }
+      function scheduleOppCall() {
+        updateStatusUI();
+        if (S.mode !== "cpu") return;
+        const tok = S.token;
+        setTimeout(() => {
+          if (!S || S.token !== tok || S.over || S.phase !== "oppCall") return;
+          const n = cpuChooseCall();
+          sPop();
+          applyMark("opp", S.opp.card.indexOf(n));
+          if (S.over) return;
+          S.target = n;
+          setPhase("myFind");
+        }, cpuCallDelay());
+      }
+      function cpuFindDelay() {
+        return S.diff === "easy"
+          ? 2200 + Math.random() * 1300
+          : S.diff === "medium"
+            ? 1300 + Math.random() * 900
+            : 700 + Math.random() * 550;
+      }
+      function cpuCallDelay() {
+        return 850 + Math.random() * 750 + (S.diff === "easy" ? 450 : 0);
+      }
+      function cpuChooseCall() {
+        const C = S.opp,
+          M = S.me;
+        const free = [];
+        for (let i = 0; i < 25; i++) if (!C.marked[i]) free.push(C.card[i]);
+        if (S.diff === "easy" || (S.diff === "medium" && Math.random() < 0.45))
+          return free[(Math.random() * free.length) | 0];
+
+        const gain = (card, marked, n) => {
+          const i = card.indexOf(n);
+          let best = 0;
+          LINES.forEach((L) => {
+            if (!L.includes(i)) return;
+            const cnt = L.filter((x) => marked[x]).length;
+            let v = cnt * 2 + (cnt >= 3 ? cnt : 0);
+            if (cnt === 4) v = 200;
+            if (v > best) best = v;
+          });
+          return best;
+        };
+        let bestN = free[0],
+          bs = -1e9;
+        for (const n of free) {
+          const s =
+            gain(C.card, C.marked, n) * 1.5 -
+            gain(M.card, M.marked, n) +
+            Math.random() * 2;
+          if (s > bs) {
+            bs = s;
+            bestN = n;
+          }
+        }
+        return bestN;
+      }
+
+      /* =====================================================================
+   RED — MQTT sobre WebSocket, conectados a TODOS los brokers a la vez.
+
+   Arreglos de esta versión:
+   · "Sala viva" se decide por RECEPCIÓN local de latidos (no comparando
+     relojes entre dispositivos: si el anfitrión tiene el reloj corrido,
+     antes el invitado descartaba todos sus latidos).
+   · Wake Lock: la pantalla no se apaga mientras esperas o juegas —
+     los celulares suspenden la pestaña y la conexión al bloquearse.
+   · Al volver a la pestaña se envía un latido inmediato.
+   · Al cerrar la pestaña del anfitrión (en espera), la sala se limpia.
+   · Errores honestos: "no existe" vs "existe pero el anfitrión no responde".
+   ===================================================================== */
+      const BROKERS = [
+        "wss://broker.emqx.io:8084/mqtt",
+        "wss://broker.hivemq.com:8884/mqtt",
+        "wss://test.mosquitto.org:8081/mqtt",
+      ];
+      const TBASE = "bingo25x5/v1/";
+      const CODE_AB = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      function genCode() {
+        let s = "";
+        for (let i = 0; i < 4; i++)
+          s += CODE_AB[(Math.random() * CODE_AB.length) | 0];
+        return s;
+      }
+      function rid() {
+        let s = "";
+        for (let i = 0; i < 6; i++)
+          s += CODE_AB[(Math.random() * CODE_AB.length) | 0];
+        return s;
+      }
+
+      let net = null;
+      function netFresh() {
+        return {
+          clients: [],
+          alive: false,
+          failed: false,
+          started: false,
+          isHost: false,
+          code: "",
+          myId: rid(),
+          oppId: "",
+          oppName: "",
+          myName: "",
+          stake: 5,
+          hbTimer: null,
+          watchTimer: null,
+          watchdog: null,
+          lastSeen: 0,
+          lastStart: null,
+          sid: "",
+          sawOpen: false,
+          readyAt: 0,
+          poorShown: false,
+          lastInfo: 0,
+        };
+      }
+      net = netFresh();
+      let rematch = { me: false, opp: false };
+
+      /* deduplicación global de mensajes por ID */
+      const seenIds = new Set();
+      function seenOnce(id) {
+        if (!id) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        if (seenIds.size > 300) {
+          const it = seenIds.values();
+          for (let k = 0; k < 100; k++) seenIds.delete(it.next().value);
+        }
+        return true;
+      }
+
+      /* ---- Wake Lock: evita que el celular suspenda la sala ---- */
+      let wakeLock = null;
+      async function pedirWakeLock() {
+        try {
+          if ("wakeLock" in navigator && !wakeLock) {
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", () => {
+              wakeLock = null;
+            });
+          }
+        } catch (e) {}
+      }
+      function soltarWakeLock() {
+        try {
+          if (wakeLock) wakeLock.release();
+        } catch (e) {}
+        wakeLock = null;
+      }
+      /* al volver a la pestaña: latido inmediato + reactivar wake lock */
+      document.addEventListener("visibilitychange", () => {
+        if (
+          document.visibilityState === "visible" &&
+          net &&
+          net.alive &&
+          !net.failed
+        ) {
+          try {
+            netHeartbeat();
+          } catch (e) {}
+          if (!S || !S.over) pedirWakeLock();
+        }
+      });
+      /* si el anfitrión cierra la pestaña mientras espera, limpia la sala retenida */
+      addEventListener("pagehide", () => {
+        try {
+          if (net && net.isHost && net.code && !S) {
+            for (const c of net.clients) {
+              try {
+                c.publish(TBASE + net.code + "/h", "", {
+                  qos: 0,
+                  retain: true,
+                });
+              } catch (e) {}
+            }
+          }
+        } catch (e) {}
+      });
+
+      function netReset() {
+        if (net) {
+          net.alive = false;
+          clearInterval(net.hbTimer);
+          clearTimeout(net.watchTimer);
+          clearInterval(net.watchdog);
+          const cs = net.clients,
+            wasHost = net.isHost,
+            code = net.code;
+          if (wasHost && code) {
+            cs.forEach((c) => {
+              try {
+                c.publish(TBASE + code + "/h", "", { qos: 0, retain: true });
+              } catch (e) {}
+            });
+          }
+          setTimeout(() => {
+            cs.forEach((c) => {
+              try {
+                c.end(false);
+              } catch (e) {}
+            });
+          }, 250);
+        }
+        soltarWakeLock();
+        net = netFresh();
+        seenIds.clear();
+        rematch = { me: false, opp: false };
+      }
+      function pubAll(topic, payload, opts) {
+        for (const c of net.clients) {
+          try {
+            c.publish(topic, payload, opts);
+          } catch (e) {}
+        }
+      }
+      function netSend(o) {
+        if (!net || !net.alive || !net.oppId || !net.clients.length) return;
+        o.mid = rid();
+        pubAll(TBASE + net.code + "/p/" + net.oppId, JSON.stringify(o), {
+          qos: 1,
+        });
+      }
+      function netSendTo(pid, o) {
+        if (!net || !net.clients.length) return;
+        o.mid = rid();
+        pubAll(TBASE + net.code + "/p/" + pid, JSON.stringify(o), { qos: 1 });
+      }
+      function netHeartbeat() {
+        if (!net || !net.alive || !net.clients.length) return;
+        const topic = TBASE + net.code + (net.isHost ? "/h" : "/g");
+        const msg = JSON.stringify({
+          t: "hb",
+          mid: rid(),
+          id: net.myId,
+          name: net.myName,
+          ts: Date.now(),
+        });
+        pubAll(topic, msg, { qos: 0, retain: net.isHost });
+      }
+      function setNetButtons(dis) {
+        $("#btnCreate").disabled = dis;
+        $("#btnJoin").disabled = dis;
+      }
+
+      function loadScript(src, timeout = 8000) {
+        return new Promise((res, rej) => {
+          const s = document.createElement("script");
+          let done = false;
+          const finish = (ok) => {
+            if (!done) {
+              done = true;
+              ok ? res() : rej();
+            }
+          };
+          s.onload = () => finish(true);
+          s.onerror = () => finish(false);
+          setTimeout(() => finish(false), timeout);
+          s.src = src;
+          document.head.appendChild(s);
+        });
+      }
+      async function loadMqtt() {
+        if (window.mqtt) return true;
+        const urls = [
+          "https://unpkg.com/mqtt/dist/mqtt.min.js",
+          "https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.1/mqtt.min.js",
+        ];
+        for (const u of urls) {
+          try {
+            await loadScript(u, 9000);
+            if (window.mqtt) return true;
+          } catch (e) {}
+        }
+        return false;
+      }
+      function connectOne(url) {
+        return new Promise((resolve) => {
+          if (!window.mqtt || !net || !net.alive) {
+            resolve(null);
+            return;
+          }
+          let done = false;
+          const willTopic = TBASE + net.code + (net.isHost ? "/h" : "/g");
+          let c;
+          try {
+            c = mqtt.connect(url, {
+              keepalive: 30,
+              reconnectPeriod: 2500,
+              connectTimeout: 6000,
+              clean: true,
+              resubscribe: true,
+              clientId: "bingo25_" + rid().toLowerCase(),
+              will: {
+                topic: willTopic,
+                payload: JSON.stringify({ t: "bye", id: net.myId }),
+                qos: 0,
+                retain: false,
+              },
+            });
+          } catch (e) {
+            resolve(null);
+            return;
+          }
+          const to = setTimeout(() => {
+            if (done) return;
+            done = true;
+            try {
+              c.end(true);
+            } catch (e) {}
+            resolve(null);
+          }, 9000);
+          c.on("connect", () => {
+            if (done) {
+              try {
+                c.end(true);
+              } catch (e) {}
+              return;
+            }
+            done = true;
+            clearTimeout(to);
+            c.on("message", (topic, payload) => {
+              let m;
+              try {
+                m = JSON.parse(new TextDecoder().decode(payload));
+              } catch (e) {
+                return;
+              }
+              onNetMsg(m);
+            });
+            c.on("close", () => {
+              net.ok = false;
+            });
+            resolve(c);
+          });
+          c.on("error", () => {
+            if (done) return;
+            done = true;
+            clearTimeout(to);
+            try {
+              c.end(true);
+            } catch (e) {}
+            resolve(null);
+          });
+        });
+      }
+      async function connectAll() {
+        const ok = await loadMqtt();
+        if (!ok || !net || !net.alive) return false;
+        const results = await Promise.all(BROKERS.map(connectOne));
+        if (!net || !net.alive) return false;
+        net.clients = results.filter(Boolean);
+        net.lastSeen = Date.now();
+        return net.clients.length > 0;
+      }
+      function startWatchdog() {
+        if (net.watchdog) clearInterval(net.watchdog);
+        net.watchdog = setInterval(() => {
+          if (!net || !net.alive) return;
+          // en partida: silencio del rival = desconexión
+          if (
+            S &&
+            S.mode === "online" &&
+            !S.over &&
+            net.lastSeen &&
+            Date.now() - net.lastSeen > 15000
+          ) {
+            handleNetDown();
+            return;
+          }
+          // anfitrión esperando: el rival desapareció antes de empezar
+          if (
+            !S &&
+            net.isHost &&
+            net.oppId &&
+            net.lastSeen &&
+            Date.now() - net.lastSeen > 9000
+          ) {
+            net.oppId = "";
+            netShowWaitingUI();
+            return;
+          }
+          // invitado: vio la sala pero el anfitrión se quedó mudo
+          if (
+            !S &&
+            !net.isHost &&
+            net.sawOpen &&
+            Date.now() - net.lastSeen > 12000
+          ) {
+            netFail(
+              "La sala existe pero el anfitrión no responde. Si usa un celular, pídele que vuelva a la pestaña del juego y la mantenga visible — o que cree la sala de nuevo.",
+            );
+            return;
+          }
+          // invitado: envió 'ready' pero nunca llegó el arranque
+          if (
+            !S &&
+            !net.isHost &&
+            net.readyAt &&
+            Date.now() - net.readyAt > 12000 &&
+            !net.failed
+          ) {
+            netFail("El anfitrión no completó el inicio. Inténtalo de nuevo.");
+          }
+        }, 3000);
+      }
+
+      /* ---------- protocolo entre jugadores (idempotente) ---------- */
+      function onNetMsg(m) {
+        if (!m || !m.t) return;
+        if (!seenOnce(m.mid)) return; // duplicado de la multi-conexión: fuera
+        net.lastSeen = Date.now();
+        switch (m.t) {
+          case "hb": {
+            if (net.isHost) {
+              if (!m.id) break;
+              if (!net.oppId) {
+                net.oppId = m.id;
+                net.oppName = (m.name || "Rival").slice(0, 12);
+                netShow(
+                  '<p class="hint"><span class="spin"></span>¡Rival conectado! Acordando apuesta…</p>',
+                );
+              } else if (m.id !== net.oppId) {
+                netSendTo(m.id, { t: "busy" });
+                break; // sala ocupada para extraños
+              }
+              if (!S && Date.now() - (net.lastInfo || 0) > 1500) {
+                net.lastInfo = Date.now();
+                netSend({ t: "roominfo", stake: net.stake }); // reenviado hasta el 'ready'
+              } else if (
+                S.over &&
+                net.lastStart &&
+                Date.now() - (S.tokenStart || 0) < 4000
+              ) {
+                netSend(net.lastStart); // por si el 'start' se perdió
+              }
+            } else {
+              // (invitado) CUALQUIER latido del anfitrión = sala viva.
+              // Sin comparar relojes: la frescura se mide por cuándo RECIBIMOS.
+              if (m.id && m.id !== net.myId) {
+                if (!net.oppId) net.oppId = m.id;
+                if (m.id === net.oppId && !net.sawOpen) {
+                  net.sawOpen = true;
+                  if (net.watchTimer) {
+                    clearTimeout(net.watchTimer);
+                    net.watchTimer = null;
+                  }
+                  netShow(
+                    '<p class="hint"><span class="spin"></span>¡Sala encontrada! Acordando apuesta…</p>',
+                  );
+                }
+              }
+            }
+            break;
+          }
+          case "roominfo": {
+            // (invitado) apuesta de la sala
+            if (net.isHost || S) break;
+            const st = validStake(m.stake);
+            net.stake = st;
+            netShow(
+              '<p class="hint"><span class="spin"></span>Apuesta de la sala: <b>' +
+                st +
+                " pts</b> · preparando cartones…</p>",
+            );
+            const w = wallet();
+            if (w >= st) {
+              if (!net.readyAt || Date.now() - net.readyAt > 2000) {
+                net.readyAt = Date.now();
+                netSend({ t: "ready" });
+              }
+            } else {
+              const alt = bestStake(w);
+              if (alt > 0) {
+                net.stake = alt;
+                netSend({ t: "stake", v: alt });
+                netShow(
+                  '<p class="hint"><span class="spin"></span>Pediste bajar la apuesta a ' +
+                    alt +
+                    " pts…</p>",
+                );
+              } else {
+                netSend({ t: "poor" });
+                netFail(
+                  "No tienes puntos suficientes para esta sala (mínimo 5). Recarga en el menú.",
+                );
+              }
+            }
+            break;
+          }
+          case "ready": // (anfitrión) rival conforme
+            if (!net.isHost || S || net.started) break;
+            hostStart();
+            break;
+          case "stake": {
+            // (anfitrión) rival pidió bajar apuesta
+            if (!net.isHost || S) break;
+            const v = validStake(m.v);
+            if (v && v < net.stake) net.stake = v;
+            break;
+          }
+          case "poor": // (anfitrión) rival sin saldo
+            if (!net.isHost || S || net.poorShown) break;
+            net.poorShown = true;
+            netShow(
+              '<p class="hint" style="color:var(--red)">Tu rival no tiene puntos suficientes. La sala sigue abierta.</p>',
+              true,
+            );
+            break;
+          case "start": {
+            // (invitado) cartones y orden
+            if (net.isHost) break;
+            if (S && !S.over) break;
+            if (net.watchTimer) {
+              clearTimeout(net.watchTimer);
+              net.watchTimer = null;
+            }
+            if (!Array.isArray(m.hcard) || !Array.isArray(m.gcard)) break;
+            const st = validStake(m.stake);
+            if (wallet() < st) {
+              netSend({ t: "poor2" });
+              openModal(`<h3>Sin puntos</h3>
+          <p class="big">La sala apuesta ${st} pts y tu saldo es de ${wallet()}.</p>
+          <div class="mbtns"><button class="btn" id="mBackL">Entendido</button></div>`);
+              $("#mBackL").onclick = () => {
+                closeModal();
+                netReset();
+                goLobby();
+              };
+              break;
+            }
+            net.sid = m.sid;
+            net.stake = st;
+            net.readyAt = 0;
+            startMatch({
+              mode: "online",
+              myName: net.myName,
+              oppName: (m.hname || "Rival").slice(0, 12),
+              myCard: m.gcard,
+              oppCard: m.hcard,
+              iCallFirst: m.first === "guest",
+              stake: st,
+            });
+            break;
+          }
+          case "poor2": {
+            // (anfitrión) rival sin saldo en revancha
+            if (!net.isHost || !S || S.over) break;
+            if (S.stake) walletAdd(S.stake);
+            S.over = true;
+            S.phase = "over";
+            updateStatusUI();
+            openModal(`<h3>Revancha cancelada</h3>
+        <p class="big">${S.opp.name} no tiene puntos suficientes. Se te devolvieron tus ${S.stake} pts.</p>
+        <div class="mbtns"><button class="btn" id="mBack2">Menú</button></div>`);
+            $("#mBack2").onclick = () => {
+              closeModal();
+              netReset();
+              goLobby();
+            };
+            const rb = $("#btnRematch");
+            rb.disabled = false;
+            rb.textContent = "Revancha";
+            break;
+          }
+          case "call": {
+            // el rival llamó: debo encontrarlo
+            if (!S || S.over || S.mode !== "online") break;
+            if (S.phase !== "oppCall") break; // solo si estoy esperando una llamada
+            const i = S.opp.card.indexOf(m.n);
+            if (i < 0 || S.opp.marked[i]) break;
+            sPop();
+            applyMark("opp", i);
+            if (S.over) break;
+            S.target = m.n;
+            setPhase("myFind");
+            break;
+          }
+          case "found": {
+            // el rival encontró mi número
+            if (!S || S.over || S.mode !== "online") break;
+            if (S.phase !== "oppFind") break; // solo si él está buscando el mío
+            const i = S.opp.card.indexOf(m.n);
+            if (i < 0 || S.opp.marked[i]) break;
+            sPop();
+            applyMark("opp", i);
+            if (S.over) break;
+            setPhase("oppCall");
+            break;
+          }
+          case "chat":
+            if (!S) break;
+            pushChat("opp", String(m.m || "").slice(0, 120));
+            break;
+          case "quit":
+            if (S && S.mode === "online" && !S.over) winByQuit();
+            break;
+          case "busy":
+            if (!S) netFail("Esa sala ya está jugando una partida.");
+            break;
+          case "closed":
+            if (!S && !net.isHost) netFail("El anfitrión cerró la sala.");
+            break;
+          case "bye":
+            handleNetDown();
+            break;
+          case "rematch":
+            if (S && S.over) {
+              rematch.opp = true;
+              tryOnlineRematch();
+            }
+            break;
+        }
+      }
+      function hostStart() {
+        if (net.started) return; // idempotente: pueden llegar varios 'ready'
+        net.started = true;
+        const hcard = buildCard(),
+          gcard = buildCard();
+        const first = Math.random() < 0.5 ? "host" : "guest";
+        const msg = {
+          t: "start",
+          sid: Date.now() + "-" + rid(),
+          hname: net.myName,
+          gname: net.oppName,
+          hcard,
+          gcard,
+          first,
+          stake: net.stake,
+        };
+        net.lastStart = msg;
+        net.sid = msg.sid;
+        netSend(msg);
+        startMatch({
+          mode: "online",
+          myName: net.myName,
+          oppName: net.oppName,
+          myCard: hcard,
+          oppCard: gcard,
+          iCallFirst: first === "host",
+          stake: net.stake,
+        });
+        S.tokenStart = Date.now();
+      }
+      function tryOnlineRematch() {
+        if (!(rematch.me && rematch.opp)) return;
+        if (net.isHost) {
+          net.started = false; // nueva negociación
+          hostStart();
+        }
+      }
+      function handleNetDown() {
+        if (S && S.mode === "online") {
+          if (S.over) return;
+          S.over = true;
+          S.phase = "over";
+          updateStatusUI();
+          let msg = S.opp.name + " se ha desconectado.";
+          if (S.stake) {
+            walletAdd(S.stake);
+            msg += " Se te devolvieron tus " + S.stake + " pts.";
+          }
+          openModal(`<h3>Conexión perdida</h3><p class="big">${msg}</p>
+      <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
+          $("#mLeave2").onclick = () => {
+            closeModal();
+            netReset();
+            goLobby();
+          };
+        } else if (net && net.alive) {
+          if (net.isHost && !S) {
+            net.oppId = "";
+            netShowWaitingUI(); // el rival se fue: la sala sigue abierta
+          } else if (!net.isHost) {
+            netFail("El anfitrión cerró la sala.");
+          }
+        }
+      }
+      function netFail(msg) {
+        if (!net) return;
+        net.alive = false;
+        net.failed = true;
+        clearInterval(net.hbTimer);
+        clearTimeout(net.watchTimer);
+        clearInterval(net.watchdog);
+        soltarWakeLock();
+        const cs = net.clients;
+        if (net.isHost && net.code) {
+          cs.forEach((c) => {
+            try {
+              c.publish(TBASE + net.code + "/h", "", { qos: 0, retain: true });
+            } catch (e) {}
+          });
+        }
+        setTimeout(() => {
+          cs.forEach((c) => {
+            try {
+              c.end(false);
+            } catch (e) {}
+          });
+        }, 250);
+        setNetButtons(false);
+        netShow(
+          '<p class="hint" style="color:var(--red)">' + msg + "</p>",
+          true,
+        );
+      }
+
+      /* ---------- crear sala / unirse ---------- */
+      async function createRoom() {
+        if (!ensureStake()) return;
+        netReset();
+        setNetButtons(true);
+        net.isHost = true;
+        net.alive = true;
+        net.myName = getName();
+        net.code = genCode();
+        net.stake = selStake;
+        netShow('<p class="hint"><span class="spin"></span>Abriendo sala…</p>');
+        const ok = await connectAll();
+        if (!net || !net.alive) return;
+        if (!ok) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        try {
+          net.clients.forEach((c) =>
+            c.subscribe(
+              [TBASE + net.code + "/g", TBASE + net.code + "/p/" + net.myId],
+              { qos: 1 },
+            ),
+          );
+        } catch (e) {}
+        net.hbTimer = setInterval(netHeartbeat, 2500);
+        netHeartbeat();
+        startWatchdog();
+        netShowWaitingUI();
+      }
+      async function joinRoomByCode() {
+        const code = $("#codeInput").value.trim().toUpperCase();
+        if (code.length !== 4) {
+          netShowErr("El código de sala tiene 4 letras.");
+          return;
+        }
+        netReset();
+        setNetButtons(true);
+        net.isHost = false;
+        net.alive = true;
+        net.myName = getName();
+        net.code = code;
+        netShow(
+          '<p class="hint"><span class="spin"></span>Buscando la sala ' +
+            code +
+            "…</p>",
+        );
+        const ok = await connectAll();
+        if (!net || !net.alive) return;
+        if (!ok) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        try {
+          net.clients.forEach((c) =>
+            c.subscribe(
+              [TBASE + code + "/h", TBASE + code + "/p/" + net.myId],
+              { qos: 1 },
+            ),
+          );
+        } catch (e) {}
+        net.hbTimer = setInterval(netHeartbeat, 2500);
+        netHeartbeat();
+        startWatchdog();
+        net.watchTimer = setTimeout(() => {
+          if (S || !net.alive || net.failed) return;
+          netFail(
+            "No se encontró la sala " +
+              code +
+              ". Verifica el código. Si el anfitrión usa celular, debe mantener la pantalla de la sala abierta y visible mientras esperas (los celulares pausan la conexión al cambiar de app).",
+          );
+        }, 30000);
+      }
+
+      /* ---------- UI de espera / compartir ---------- */
+      function getName() {
+        return $("#nameOnline").value.trim() || "Jugador";
+      }
+      function netShow(html, err) {
+        const el = $("#netStatus");
+        el.classList.remove("hidden");
+        el.classList.toggle("err", !!err);
+        el.innerHTML = html;
+        lucide.createIcons();
+      }
+      function netShowErr(t) {
+        netShow('<p class="hint" style="color:var(--red)">' + t + "</p>", true);
+      }
+      function netShowWaitingUI() {
+        pedirWakeLock(); // que la pantalla no se apague mientras esperas
+        const share = /^https?:$/.test(location.protocol)
+          ? location.origin + location.pathname + "#sala=" + net.code
+          : null;
+        let btns =
+          '<button class="copybtn" id="copyCodeBtn"><i data-lucide="copy"></i> Copiar código</button>';
+        if (share) {
+          btns +=
+            '<button class="copybtn" id="copyLinkBtn"><i data-lucide="link"></i> Copiar enlace</button>';
+          if (navigator.share)
+            btns +=
+              '<button class="copybtn" id="shareBtn"><i data-lucide="share-2"></i> Enviar</button>';
+        }
+        netShow(`
+    <p class="hint">Sala abierta · apuesta de <b>${net.stake} pts</b></p>
+    <div class="bigcode">${net.code}</div>
+    <div class="copyrow">${btns}</div>
+    <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival… (conectado a ${net.clients.length}/${BROKERS.length} servidores)</p>
+    <p class="hint" style="margin-top:6px; color:var(--red-deep)">Importante: mantén esta pantalla abierta y visible — los celulares pausan la conexión al cambiar de app.</p>`);
+        $("#copyCodeBtn").onclick = () => copyText(net.code, $("#copyCodeBtn"));
+        const lb = $("#copyLinkBtn");
+        if (lb) lb.onclick = () => copyText(share, lb);
+        const sb = $("#shareBtn");
+        if (sb)
+          sb.onclick = async () => {
+            try {
+              await navigator.share({
+                title: "Bingo",
+                text: "Entra a mi sala de Bingo con el código " + net.code,
+                url: share,
+              });
+            } catch (e) {
+              /* cancelado */
+            }
+          };
+      }
+      function copyText(text, btn) {
+        const done = () => {
+          const old = btn.innerHTML;
+          btn.innerHTML = '<i data-lucide="check"></i> Copiado';
+          lucide.createIcons();
+          setTimeout(() => {
+            btn.innerHTML = old;
+            lucide.createIcons();
+          }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(text)
+            .then(done)
+            .catch(() => {
+              fallbackCopy(text);
+              done();
+            });
+        } else {
+          fallbackCopy(text);
+          done();
+        }
+      }
+      function fallbackCopy(t) {
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+        } catch (e) {}
+        ta.remove();
+      }
+
+      /* ================= CHAT DE SALA ================= */
+      function toggleChat(force) {
+        const p = $("#chatPanel");
+        const show =
+          force !== undefined ? force : p.classList.contains("hidden");
+        p.classList.toggle("hidden", !show);
+        if (show) {
+          if (S) S.unread = 0;
+          updateChatBadge();
+          renderChat();
+          setTimeout(() => $("#chatInput").focus(), 80);
+        } else if (document.activeElement) {
+          document.activeElement.blur();
+        }
+      }
+      function updateChatBadge() {
+        const u = S ? S.unread : 0;
+        $("#chatBadge").textContent = u > 9 ? "9+" : u;
+        $("#chatBadge").classList.toggle("hidden", !u);
+      }
+      function renderChat() {
+        const box = $("#chatList");
+        box.innerHTML = "";
+        (S ? S.chat : []).forEach((c) => {
+          const row = document.createElement("div");
+          row.className = "cmsg " + (c.who === "me" ? "me" : "op");
+          const b = document.createElement("div");
+          b.className = "cbub";
+          b.textContent = c.text; // textContent: nunca se inyecta HTML ajeno
+          row.appendChild(b);
+          box.appendChild(row);
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+      function pushChat(who, text) {
+        if (!S) return;
+        S.chat.push({ who, text });
+        if ($("#chatPanel").classList.contains("hidden")) {
+          S.unread++;
+          updateChatBadge();
+          if (who === "opp") {
+            sMsg();
+            floatNote($("#opstrip"), S.opp.name + ": " + text, BLUE, 2600);
+          }
+        } else {
+          if (who === "opp") sMsg();
+          renderChat();
+        }
+      }
+      function sendChat(text) {
+        text = (text || "").trim().slice(0, 120);
+        if (!text || !S) return;
+        netSend({ t: "chat", m: text });
+        S.chat.push({ who: "me", text });
+        if ($("#chatPanel").classList.contains("hidden")) {
+          floatNote($("#opstrip"), "Tú: " + text, RED, 2600);
+        } else renderChat();
+      }
+
+      /* ================= VICTORIA ================= */
+      function win(who) {
+        S.over = true;
+        S.phase = "over";
+        updateStatusUI();
+        soltarWakeLock();
+        const P = S[who];
+        const col = who === "me" ? RED : BLUE;
+        let pts = "";
+        if (S.stake) {
+          if (who === "me") walletAdd(S.stake * 2); // se lleva el bote (neto +S.stake)
+          pts = (who === "me" ? "+" + S.stake : "−" + S.stake) + " pts";
+        }
+        $("#wbanner").style.setProperty("--wc", col);
+        $("#winPanel").style.setProperty("--wc", col);
+        $("#wname").textContent = P.name;
+        const rounds = S.me.marked.filter(Boolean).length;
+        $("#wstats").textContent =
+          (who === "me" ? "Estampaste" : "Estampó") +
+          " las cinco letras en " +
+          rounds +
+          " rondas";
+        $("#wpts").textContent = pts;
+        $("#wpts").classList.toggle("hidden", !pts);
+        if (who === "me") {
+          sWin();
+          launchConfetti();
+        } else {
+          sLose();
+        }
+        const rb = $("#btnRematch");
+        rb.disabled = false;
+        rb.textContent = "Revancha";
+        setTimeout(
+          () => $("#win").classList.remove("hidden"),
+          who === "me" ? 900 : 650,
+        );
+      }
+      function winByQuit() {
+        if (!S || S.over) return;
+        S.over = true;
+        S.phase = "over";
+        updateStatusUI();
+        soltarWakeLock();
+        if (S.stake) walletAdd(S.stake * 2);
+        $("#wbanner").style.setProperty("--wc", RED);
+        $("#winPanel").style.setProperty("--wc", RED);
+        $("#wname").textContent = S.me.name;
+        $("#wstats").textContent = S.opp.name + " abandonó la partida";
+        $("#wpts").textContent = S.stake ? "+" + S.stake + " pts" : "";
+        $("#wpts").classList.toggle("hidden", !S.stake);
+        sWin();
+        launchConfetti();
+        setTimeout(() => $("#win").classList.remove("hidden"), 500);
+      }
+      function hideWin() {
+        $("#win").classList.add("hidden");
+        stopConfetti();
+      }
+
+      /* ================= CONFETI (canvas) ================= */
+      const cv = $("#confetti"),
+        ctx = cv.getContext("2d");
+      let confPieces = [],
+        confRun = false,
+        confStart = 0;
+      function sizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        cv.width = innerWidth * dpr;
+        cv.height = innerHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      addEventListener("resize", sizeCanvas);
+      sizeCanvas();
+
+      function launchConfetti() {
+        confPieces = Array.from({ length: 170 }, () => ({
+          x: Math.random() * innerWidth,
+          y: -30 - Math.random() * innerHeight * 0.5,
+          vx: (Math.random() - 0.5) * 1.6,
+          vy: 2.2 + Math.random() * 3.2,
+          w: 5 + Math.random() * 5,
+          h: 9 + Math.random() * 9,
+          a: Math.random() * Math.PI * 2,
+          va: (Math.random() - 0.5) * 0.25,
+          ph: Math.random() * Math.PI * 2,
+          vph: 0.08 + Math.random() * 0.12,
+          c: CONF_COLORS[(Math.random() * CONF_COLORS.length) | 0],
+        }));
+        confRun = true;
+        confStart = performance.now();
+        requestAnimationFrame(confStep);
+      }
+      function confStep(now) {
+        if (!confRun) {
+          ctx.clearRect(0, 0, innerWidth, innerHeight);
+          return;
+        }
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        for (const p of confPieces) {
+          p.x += p.vx + Math.sin(p.ph) * 0.6;
+          p.y += p.vy;
+          p.a += p.va;
+          p.ph += p.vph;
+          if (p.y > innerHeight + 30) {
+            p.y = -20;
+            p.x = Math.random() * innerWidth;
+          }
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.a);
+          ctx.scale(1, Math.max(0.15, Math.abs(Math.sin(p.ph))));
+          ctx.fillStyle = p.c;
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        }
+        if (now - confStart < 5200) requestAnimationFrame(confStep);
+        else {
+          confRun = false;
+          ctx.clearRect(0, 0, innerWidth, innerHeight);
+        }
+      }
+      function stopConfetti() {
+        confRun = false;
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+      }
+
+      /* ================= MODALES ================= */
+      function openModal(html) {
+        $("#modalBody").innerHTML = html;
+        $("#modal").classList.remove("hidden");
+        lucide.createIcons();
+      }
+      function closeModal() {
+        $("#modal").classList.add("hidden");
+      }
+      $("#mclose").addEventListener("click", closeModal);
+      $("#modal").addEventListener("click", (e) => {
+        if (e.target === $("#modal")) closeModal();
+      });
+
+      function showRules() {
+        openModal(`
+    <div class="mini-stamps"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+    <h3>Cómo se juega</h3>
+    <ol>
+      <li>Los dos cartones tienen <b>los mismos números del 1 al 25</b>, mezclados en distinto orden.</li>
+      <li>En tu turno de <b>llamar</b>, toca cualquier casilla libre de tu cartón: ese número queda marcado para ti… y el rival deberá <b>buscarlo</b> en el suyo.</li>
+      <li>Cuando el rival llama, <b>encuentra su número</b> en tu cartón y tócalo. Quien encuentra, llama después.</li>
+      <li>Cada línea completa (fila, columna o diagonal) estampa una letra sobre B·I·N·G·O, siempre en ese orden.</li>
+      <li>El primero en estampar las cinco letras canta <b>¡BINGO!</b> y gana los <b>puntos en juego</b>.</li>
+    </ol>
+    <p class="tip">Consejo: llama números que te completen líneas a ti… y que a tu rival le sirvan de poco.</p>`);
+      }
+      function showExitConfirm() {
+        const online = S && S.mode === "online" && !S.over;
+        const cpu = S && S.mode === "cpu" && !S.over;
+        let extra = "";
+        if (online)
+          extra =
+            "Si sales, <b>" +
+            S.opp.name +
+            " se llevará el bote</b>" +
+            (S.stake ? " (" + S.stake * 2 + " pts)." : ".");
+        else if (cpu && S.stake)
+          extra = "Se te devolverán tus " + S.stake + " pts.";
+        openModal(`
+    <h3>¿Abandonar la partida?</h3>
+    <p class="big">${extra || "El progreso actual se perderá."}</p>
+    <div class="mbtns">
+      <button class="btn ghost" id="mStay">Seguir jugando</button>
+      <button class="btn" id="mLeave">Salir al menú</button>
+    </div>`);
+        $("#mStay").onclick = closeModal;
+        $("#mLeave").onclick = () => {
+          if (online) netSend({ t: "quit" });
+          if (cpu && S.stake) walletAdd(S.stake);
+          closeModal();
+          netReset();
+          goLobby();
+        };
+      }
+      function goLobby() {
+        S = null;
+        hideWin();
+        closeModal();
+        $("#chatPanel").classList.add("hidden");
+        setNetButtons(false);
+        updateWalletUI();
+        $("#game").classList.add("hidden");
+        $("#lobby").classList.remove("hidden");
+      }
+
+      /* ================= LOBBY: INTERACCIONES ================= */
+      function selectMode(mode) {
+        sClick();
+        $("#tkCpu").classList.toggle("sel", mode === "cpu");
+        $("#tkNet").classList.toggle("sel", mode === "net");
+        $("#setupCpu").classList.toggle("hidden", mode !== "cpu");
+        $("#setupNet").classList.toggle("hidden", mode !== "net");
+        if (mode !== "net") {
+          netReset();
+          $("#netStatus").classList.add("hidden");
+        }
+      }
+      $("#tkCpu").addEventListener("click", () => selectMode("cpu"));
+      $("#tkNet").addEventListener("click", () => selectMode("net"));
+
+      $("#segDiff").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        selDiff = b.dataset.d;
+        sClick();
+        [...$("#segDiff").children].forEach((x) =>
+          x.classList.toggle("on", x === b),
+        );
+      });
+      document.querySelectorAll(".stak").forEach((seg) => {
+        seg.addEventListener("click", (e) => {
+          const b = e.target.closest("button");
+          if (!b || b.disabled) return;
+          selStake = +b.dataset.v;
+          sClick();
+          syncStakeUI();
+        });
+      });
+      $("#btnRecharge").addEventListener("click", () => {
+        sClick();
+        walletSet(100);
+      });
+
+      $("#btnStartCpu").addEventListener("click", () => {
+        if (!ensureStake()) return;
+        sClick();
+        netReset();
+        startMatch({
+          mode: "cpu",
+          diff: selDiff,
+          myName: "Tú",
+          oppName: "CPU",
+          myCard: buildCard(),
+          oppCard: buildCard(),
+          iCallFirst: Math.random() < 0.5,
+          stake: selStake,
+        });
+      });
+      $("#btnCreate").addEventListener("click", () => {
+        sClick();
+        createRoom();
+      });
+      $("#btnJoin").addEventListener("click", () => {
+        sClick();
+        joinRoomByCode();
+      });
+      $("#codeInput").addEventListener("input", (e) => {
+        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      });
+      $("#codeInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") joinRoomByCode();
+      });
+      $("#btnRules").addEventListener("click", () => {
+        sClick();
+        showRules();
+      });
+
+      /* enlace de invitación: #sala=XXXX deja el código listo → solo pulsar Unirse */
+      const mHash = location.hash.match(/sala=([A-Za-z0-9]{4})/);
+      if (mHash) {
+        selectMode("net");
+        $("#codeInput").value = mHash[1].toUpperCase();
+        netShow(
+          '<p class="hint">Sala cargada desde el enlace · pon tu nombre y pulsa <b>Unirse</b>.</p>',
+        );
+        $("#btnJoin").focus();
+      }
+
+      /* ================= HEADER DEL JUEGO ================= */
+      $("#btnSound").addEventListener("click", () => {
+        soundOn = !soundOn;
+        $("#btnSound").innerHTML =
+          `<i data-lucide="${soundOn ? "volume-2" : "volume-x"}"></i>`;
+        lucide.createIcons();
+        if (soundOn) sClick();
+      });
+      $("#btnChat").addEventListener("click", () => {
+        sClick();
+        toggleChat();
+      });
+      $("#btnChatClose").addEventListener("click", () => toggleChat(false));
+      $("#btnChatSend").addEventListener("click", () => {
+        sendChat($("#chatInput").value);
+        $("#chatInput").value = "";
+        $("#chatInput").focus();
+      });
+      $("#chatInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          sendChat($("#chatInput").value);
+          $("#chatInput").value = "";
+        }
+      });
+      QUICK_CHAT.forEach((q) => {
+        const b = document.createElement("button");
+        b.textContent = q;
+        b.addEventListener("click", () => {
+          sClick();
+          sendChat(q);
+        });
+        $("#chatQuick").appendChild(b);
+      });
+      $("#btnHelp").addEventListener("click", () => {
+        sClick();
+        showRules();
+      });
+      $("#btnExit").addEventListener("click", () => {
+        sClick();
+        showExitConfirm();
+      });
+
+      /* ================= FIN DE PARTIDA ================= */
+      $("#btnRematch").addEventListener("click", () => {
+        if (!S) return;
+        sClick();
+        if (wallet() < Math.max(5, S.stake)) {
+          openModal(`<h3>Sin puntos</h3>
+      <p class="big">No tienes saldo para la revancha${S.stake ? " de " + S.stake + " pts" : ""}. Recarga para seguir.</p>
+      <div class="mbtns"><button class="btn" id="mRec3">Recargar 100</button></div>`);
+          $("#mRec3").onclick = () => {
+            walletSet(100);
+            closeModal();
+          };
+          return;
+        }
+        if (S.mode === "cpu") {
+          startMatch({
+            mode: "cpu",
+            diff: S.diff,
+            myName: S.me.name,
+            oppName: "CPU",
+            myCard: buildCard(),
+            oppCard: buildCard(),
+            iCallFirst: Math.random() < 0.5,
+            stake: S.stake,
+          });
+          return;
+        }
+        if (rematch.me) return;
+        rematch.me = true;
+        netSend({ t: "rematch" });
+        const rb = $("#btnRematch");
+        rb.disabled = true;
+        rb.textContent = "Esperando a " + S.opp.name + "…";
+        tryOnlineRematch();
+      });
+      $("#btnMenu2").addEventListener("click", () => {
+        sClick();
+        netReset();
+        goLobby();
+      });
+
+      /* ================= INICIO ================= */
+      updateWalletUI();
+      syncStakeUI();
+      lucide.createIcons();
+    </script>
+  </body>
+</html>
