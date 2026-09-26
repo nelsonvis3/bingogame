@@ -10,8 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Condensed:wght@500;600;700;800&family=Caveat:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
       :root {
         --felt: #1e5c41;
@@ -381,7 +381,7 @@
       }
       .netstatus .bigcode {
         font-family: "Alfa Slab One";
-        font-size: 36px;
+        font-size: 38px;
         letter-spacing: 0.18em;
         color: var(--red);
         margin: 4px 0 2px;
@@ -407,10 +407,12 @@
           transform: rotate(360deg);
         }
       }
-      .netstatus .copyline {
+      .copyrow {
         display: flex;
+        gap: 8px;
         justify-content: center;
         margin-top: 8px;
+        flex-wrap: wrap;
       }
       .copybtn {
         display: inline-flex;
@@ -626,7 +628,6 @@
         width: 100%;
       }
 
-      /* Bola del número buscado */
       .findbar {
         display: flex;
         flex-direction: column;
@@ -693,7 +694,6 @@
         text-align: center;
       }
 
-      /* Tira del rival */
       .opstrip {
         position: relative;
         width: min(520px, 100%);
@@ -773,7 +773,6 @@
         padding: 2px 7px;
       }
 
-      /* Cartón propio */
       .card {
         position: relative;
         width: min(520px, 100%);
@@ -1277,8 +1276,8 @@
         <button class="ticket" id="tkNet">
           <span class="ticon"><i data-lucide="wifi"></i></span>
           <span
-            ><h3>1 vs 1 online</h3>
-            <p>Crea una sala y jueguen en pantallas separadas</p></span
+            ><h3>1 vs 1 en línea</h3>
+            <p>Un código de 4 letras y a jugar</p></span
           >
           <span class="perf"></span>
           <span class="tick"><i data-lucide="check"></i></span>
@@ -1297,11 +1296,12 @@
 
       <div class="setup hidden" id="setupNet">
         <label>Tu nombre</label>
-        <input id="nameOnline" maxlength="12" value="Jugador 1" />
+        <input type="text" id="nameOnline" maxlength="12" value="Jugador 1" />
         <button class="btn" id="btnCreate">Crear sala</button>
         <div class="or">O ÚNETE A UNA</div>
         <div class="joinrow">
           <input
+            type="text"
             id="codeInput"
             maxlength="4"
             placeholder="CÓDIGO"
@@ -1311,8 +1311,9 @@
         </div>
         <div id="netStatus" class="netstatus hidden"></div>
         <p class="netnote">
-          Conexión directa entre navegadores (P2P). Comparte el código y cada
-          quien juega en su propia pantalla, incluso en otro dispositivo.
+          El código de 4 letras conecta los dos navegadores a través de
+          servidores públicos de mensajes. Sin cuentas ni instalaciones:
+          funciona en cualquier dispositivo y red.
         </p>
       </div>
 
@@ -1405,7 +1406,6 @@
         "#3c8a63",
       ];
 
-      // 12 líneas posibles: 5 filas, 5 columnas, 2 diagonales
       const LINES = [];
       for (let r = 0; r < 5; r++)
         LINES.push([0, 1, 2, 3, 4].map((c) => r * 5 + c));
@@ -1416,24 +1416,9 @@
       const $ = (s) => document.querySelector(s);
 
       /* ================= ESTADO ================= */
-      let S = null; // partida activa
+      let S = null;
       let selDiff = "medium";
       let soundOn = true;
-
-      // Capa de red (hoy P2P con PeerJS; mañana puede ser tu backend Python/WebSockets)
-      let net = {
-        peer: null,
-        conn: null,
-        isHost: false,
-        code: "",
-        connected: false,
-        myName: "",
-        myCard: null,
-        guestName: "",
-        guestCard: null,
-      };
-      let rematch = { me: false, opp: false };
-      let hostAttempts = 0;
 
       /* ================= AUDIO (WebAudio, sin archivos) ================= */
       let audioCtx = null;
@@ -1592,6 +1577,10 @@
           },
         };
         rematch = { me: false, opp: false };
+        if (o.mode === "online") {
+          net.connected = true;
+          net.lastSeen = Date.now();
+        }
         $("#lobby").classList.add("hidden");
         $("#game").classList.remove("hidden");
         hideWin();
@@ -1654,7 +1643,6 @@
         pl.classList.add("nudge");
       }
 
-      /* --- soy el que llama: elijo cualquier número libre --- */
       function doMyCall(i) {
         const n = S.me.card[i];
         netSend({ t: "call", n });
@@ -1664,14 +1652,13 @@
         S.target = n;
         setPhase("oppFind");
       }
-      /* --- el rival llamó y yo lo encontré --- */
       function doMyFound(i) {
         const n = S.target;
         netSend({ t: "found", n });
         scribble(i);
         applyMark("me", i);
         if (S.over) return;
-        setPhase("myCall"); // quien encuentra, llama ahora
+        setPhase("myCall");
       }
 
       function scribble(i) {
@@ -1684,9 +1671,9 @@
         sScrib();
       }
 
-      /* aplica una marca sobre un tablero y estampa letras si cierra líneas */
       function applyMark(who, i) {
         const P = S[who];
+        if (P.marked[i]) return;
         P.marked[i] = true;
         const newLines = [];
         LINES.forEach((L, idx) => {
@@ -1807,10 +1794,10 @@
         $("#roundTxt").textContent = "· Jugada " + (plays + 1);
       }
 
-      /* ================= TURNO DEL RIVAL (CPU u online en espera) ================= */
+      /* ================= TURNO DEL RIVAL (solo CPU) ================= */
       function scheduleOppFind() {
         updateStatusUI();
-        if (S.mode !== "cpu") return; // online: llega por mensaje 'found'
+        if (S.mode !== "cpu") return;
         const tok = S.token,
           n = S.target;
         setTimeout(() => {
@@ -1823,7 +1810,7 @@
       }
       function scheduleOppCall() {
         updateStatusUI();
-        if (S.mode !== "cpu") return; // online: llega por mensaje 'call'
+        if (S.mode !== "cpu") return;
         const tok = S.token;
         setTimeout(() => {
           if (!S || S.token !== tok || S.over || S.phase !== "oppCall") return;
@@ -1853,7 +1840,6 @@
         if (S.diff === "easy" || (S.diff === "medium" && Math.random() < 0.45))
           return free[(Math.random() * free.length) | 0];
 
-        // cuánto aporta un número a las líneas de un tablero
         const gain = (card, marked, n) => {
           const i = card.indexOf(n);
           let best = 0;
@@ -1861,7 +1847,7 @@
             if (!L.includes(i)) return;
             const cnt = L.filter((x) => marked[x]).length;
             let v = cnt * 2 + (cnt >= 3 ? cnt : 0);
-            if (cnt === 4) v = 200; // cerraría línea ya mismo
+            if (cnt === 4) v = 200;
             if (v > best) best = v;
           });
           return best;
@@ -1869,7 +1855,6 @@
         let bestN = free[0],
           bs = -1e9;
         for (const n of free) {
-          // le suma a sus líneas y resta lo que le regalaría al mío
           const s =
             gain(C.card, C.marked, n) * 1.5 -
             gain(M.card, M.marked, n) +
@@ -1882,29 +1867,19 @@
         return bestN;
       }
 
-      /* ================= RED (PeerJS · sala por código) ================= */
-      const hasNet = typeof Peer !== "undefined";
-      // STUN para el caso simple + TURN (relay) como respaldo cuando el NAT/wifi
-      // bloquea la conexión directa (común en algunos routers domésticos).
-      const ICE_SERVERS = [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        {
-          urls: "turn:openrelay.metered.ca:80",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443?transport=tcp",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
+      /* =====================================================================
+   RED — MQTT sobre WebSocket con brokers públicos (SIN WebRTC).
+   Es una conexión saliente normal (como cargar una web): atraviesa
+   cualquier NAT, red de empresa o datos móviles. Sin salas fantasma:
+   el anuncio de sala usa "retain" (el broker guarda el último mensaje).
+   Tres brokers en cascada: si uno no responde, se prueba el siguiente.
+   ===================================================================== */
+      const BROKERS = [
+        "wss://broker.emqx.io:8084/mqtt",
+        "wss://broker.hivemq.com:8884/mqtt",
+        "wss://test.mosquitto.org:8081/mqtt",
       ];
+      const TBASE = "bingo25x5/v1/";
       const CODE_AB = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       function genCode() {
         let s = "";
@@ -1912,239 +1887,513 @@
           s += CODE_AB[(Math.random() * CODE_AB.length) | 0];
         return s;
       }
-      const pid = (code) => "bingo25x5-" + code;
 
-      function netReset() {
-        try {
-          net.conn && net.conn.close();
-        } catch (e) {}
-        try {
-          net.peer && net.peer.destroy();
-        } catch (e) {}
-        net = {
-          peer: null,
-          conn: null,
+      let net = null;
+      function netFresh() {
+        return {
+          client: null,
+          send: null,
+          ok: false,
           isHost: false,
           code: "",
           connected: false,
+          alive: false,
+          starting: false,
           myName: "",
-          myCard: null,
-          guestName: "",
-          guestCard: null,
+          oppName: "",
+          hbTimer: null,
+          watchTimer: null,
+          watchdog: null,
+          lastSeen: 0,
+          lastStart: null,
+          lastOut: null,
+          sawOpen: false,
         };
+      }
+      net = netFresh();
+      let rematch = { me: false, opp: false };
+
+      function netReset() {
+        if (net) {
+          net.alive = false;
+          if (net.hbTimer) clearInterval(net.hbTimer);
+          if (net.watchTimer) clearTimeout(net.watchTimer);
+          if (net.watchdog) clearInterval(net.watchdog);
+          const oldSend = net.send,
+            oldClient = net.client,
+            wasHost = net.isHost;
+          if (oldClient) {
+            if (wasHost && oldSend) {
+              try {
+                oldSend({ t: "closed" }, true);
+              } catch (e) {} // limpia la sala retenida
+              setTimeout(() => {
+                try {
+                  oldClient.end(true);
+                } catch (e) {}
+              }, 250);
+            } else {
+              try {
+                oldClient.end(true);
+              } catch (e) {}
+            }
+          }
+        }
+        net = netFresh();
         rematch = { me: false, opp: false };
       }
       function netSend(o) {
+        if (!net || !net.send || !net.alive) return;
+        if (S && S.mode === "online" && (o.t === "call" || o.t === "found"))
+          net.lastOut = o;
         try {
-          if (net.conn && net.conn.open) net.conn.send(o);
+          net.send(o);
         } catch (e) {}
       }
-
-      function bindConn(c) {
-        net.conn = c;
-        let down = false;
-        const die = () => {
-          if (net.conn !== c || down) return;
-          down = true;
-          const wasConnected = net.connected;
-          net.connected = false;
-          if (!wasConnected) {
-            // nunca llegó a abrir de verdad: es un fallo de conexión, no una desconexión en partida
-            netShowErr(
-              "No se pudo establecer la conexión (falló el enlace P2P). Intenta de nuevo; si persiste, puede que la red bloquee conexiones directas.",
-            );
-            return;
-          }
-          handleNetDown();
-        };
-        c.on("open", () => {
-          if (net.conn === c) net.connected = true;
-        });
-        c.on("data", onNetMsg);
-        c.on("close", die);
-        c.on("error", die);
+      function setNetButtons(dis) {
+        $("#btnCreate").disabled = dis;
+        $("#btnJoin").disabled = dis;
       }
-      function handleNetDown() {
-        net.connected = false;
-        if (S && !S.over && S.mode === "online") {
-          openModal(`<h3>Conexión perdida</h3>
-      <p class="big">${S.opp.name} se ha desconectado.</p>
-      <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
-          $("#mLeave2").onclick = () => {
-            closeModal();
-            netReset();
-            goLobby();
+
+      function loadScript(src, timeout = 8000) {
+        return new Promise((res, rej) => {
+          const s = document.createElement("script");
+          let done = false;
+          const finish = (ok) => {
+            if (!done) {
+              done = true;
+              ok ? res() : rej();
+            }
           };
-        } else if (!S) {
-          netShowErr("Se perdió la conexión.");
+          s.onload = () => finish(true);
+          s.onerror = () => finish(false);
+          setTimeout(() => finish(false), timeout);
+          s.src = src;
+          document.head.appendChild(s);
+        });
+      }
+      async function loadMqtt() {
+        if (window.mqtt) return true;
+        const urls = [
+          "https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js",
+          "https://unpkg.com/mqtt/dist/mqtt.min.js",
+        ];
+        for (const u of urls) {
+          try {
+            await loadScript(u, 9000);
+            if (window.mqtt) return true;
+          } catch (e) {}
         }
+        return false;
       }
 
-      function createRoom() {
-        if (!hasNet) {
-          netShowErr(
-            "El módulo de red no cargó. Revisa tu conexión a internet.",
-          );
-          return;
-        }
-        netReset();
-        net.isHost = true;
-        net.myName = getName();
-        net.code = genCode();
-        netShowCreating();
-        net.peer = new Peer(pid(net.code), {
-          config: { iceServers: ICE_SERVERS },
-        });
-        const tok = ++hostAttempts;
-        net.peer.on("open", () => {
-          if (tok !== hostAttempts) return;
-          netShowWaiting();
-        });
-        net.peer.on("connection", (c) => {
-          if (net.conn) {
-            try {
-              c.close();
-            } catch (e) {}
-            return;
-          } // solo un rival
-          bindConn(c);
-          if (!S) netShowReady();
-        });
-        net.peer.on("disconnected", () => {
-          try {
-            net.peer.reconnect();
-          } catch (e) {}
-        });
-        net.peer.on("error", handlePeerErr);
-        setTimeout(() => {
-          if (tok === hostAttempts && !net.peer.open) {
-            netShowErr(
-              "No se pudo crear la sala (sin respuesta del servidor). Revisa tu internet e inténtalo de nuevo.",
-            );
-          }
-        }, 9000);
-      }
-      function joinRoom() {
-        if (!hasNet) {
-          netShowErr(
-            "El módulo de red no cargó. Revisa tu conexión a internet.",
-          );
-          return;
-        }
-        const code = $("#codeInput").value.trim().toUpperCase();
-        if (code.length !== 4) {
-          netShowErr("El código de sala tiene 4 caracteres.");
-          return;
-        }
-        netReset();
-        net.isHost = false;
-        net.myName = getName();
-        netShowJoining(code);
-        net.peer = new Peer(undefined, {
-          config: { iceServers: ICE_SERVERS },
-        });
-        const tok = ++hostAttempts;
-        net.peer.on("open", () => {
-          if (tok !== hostAttempts) return;
-          net.myCard = buildCard();
-          const c = net.peer.connect(pid(code), { reliable: true });
-          bindConn(c);
-          c.on("open", () => {
-            if (tok !== hostAttempts) return;
-            netSend({ t: "hello", name: net.myName, card: net.myCard });
-            netShowReady();
+      /* conecta con el primer broker que responda */
+      function connectBroker(myTopic) {
+        return loadMqtt().then((ok) => {
+          if (!ok || !net || !net.alive) return Promise.resolve(null);
+          return new Promise((resolve) => {
+            let i = 0,
+              settled = false;
+            const tryNext = () => {
+              if (settled || !net || !net.alive) return;
+              if (i >= BROKERS.length) {
+                settled = true;
+                resolve(null);
+                return;
+              }
+              const url = BROKERS[i++];
+              const c = mqtt.connect(url, {
+                keepalive: 30,
+                reconnectPeriod: 2500,
+                connectTimeout: 6000,
+                clean: true,
+                clientId: "bingo25_" + Math.random().toString(16).slice(2, 10),
+                will: {
+                  topic: myTopic,
+                  payload: JSON.stringify({ t: "bye" }),
+                  qos: 0,
+                  retain: false,
+                },
+              });
+              const to = setTimeout(() => {
+                if (settled) return;
+                try {
+                  c.end(true);
+                } catch (e) {}
+                tryNext();
+              }, 7000);
+              c.on("connect", () => {
+                if (settled) {
+                  try {
+                    c.end(true);
+                  } catch (e) {}
+                  return;
+                }
+                settled = true;
+                clearTimeout(to);
+                net.ok = true;
+                wireClient(c);
+                resolve(c);
+              });
+              c.on("error", () => {
+                /* el timeout decide el cambio de broker */
+              });
+            };
+            tryNext();
           });
         });
-        net.peer.on("disconnected", () => {
-          try {
-            net.peer.reconnect();
-          } catch (e) {}
-        });
-        net.peer.on("error", handlePeerErr);
-        setTimeout(() => {
-          if (tok === hostAttempts && !net.connected)
-            netShowErr("No se pudo conectar. Verifica el código.");
-        }, 9000);
       }
-      function handlePeerErr(e) {
-        const t = (e && e.type) || "";
-        if (net.connected) return; // ya jugando: el canal de datos sigue vivo
-        if (t === "unavailable-id" && net.isHost && hostAttempts < 4) {
-          hostAttempts++;
-          createRoom(); // código raro repetido: reintentar con otro
-          return;
-        }
-        hostAttempts = 0;
-        const msg =
-          t === "peer-unavailable"
-            ? "No hay ninguna sala con ese código."
-            : t === "browser-incompatible"
-              ? "Tu navegador no soporta conexión P2P."
-              : "Sin conexión con el servidor de salas. Revisa tu internet.";
-        netShowErr(msg);
+      function wireClient(c) {
+        net.client = c;
+        c.on("message", (topic, payload) => {
+          let m;
+          try {
+            m = JSON.parse(new TextDecoder().decode(payload));
+          } catch (e) {
+            return;
+          }
+          onNetMsg(m);
+        });
+        c.on("close", () => {
+          net.ok = false;
+        });
+        c.on("connect", () => {
+          net.ok = true;
+        });
       }
 
-      /* --- protocolo de mensajes entre jugadores --- */
+      /* ---------- crear sala: un paso ---------- */
+      async function createRoom() {
+        netReset();
+        setNetButtons(true);
+        net.isHost = true;
+        net.alive = true;
+        net.myName = getName();
+        net.code = genCode();
+        netShow('<p class="hint"><span class="spin"></span>Abriendo sala…</p>');
+        const th = TBASE + net.code + "/h"; // el anfitrión publica aquí
+        const tg = TBASE + net.code + "/g"; // …y escucha aquí
+        const client = await connectBroker(th);
+        if (!net || !net.alive) return;
+        if (!client) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        client.subscribe(tg, { qos: 1 });
+        net.send = (o) => client.publish(th, JSON.stringify(o), { qos: 1 });
+        // anuncio retenido: cualquier rival que entre ve la sala al instante
+        const hb = () => netSend2((o) => net.send(o), true);
+        netSend({ t: "hb", name: net.myName });
+        net.hbTimer = setInterval(() => {
+          try {
+            net.send({ t: "hb", name: net.myName });
+          } catch (e) {}
+        }, 2500);
+        try {
+          client.publish(th, JSON.stringify({ t: "hb", name: net.myName }), {
+            qos: 1,
+            retain: true,
+          });
+        } catch (e) {}
+        startWatchdog();
+        netShowWaitingUI();
+      }
+      function netSend2(fn, r) {
+        fn();
+      }
+
+      /* ---------- unirse: un paso ---------- */
+      async function joinRoomByCode() {
+        const code = $("#codeInput").value.trim().toUpperCase();
+        if (code.length !== 4) {
+          netFail("El código de sala tiene 4 letras.");
+          return;
+        }
+        netReset();
+        setNetButtons(true);
+        net.isHost = false;
+        net.alive = true;
+        net.myName = getName();
+        net.code = code;
+        netShow(
+          '<p class="hint"><span class="spin"></span>Buscando la sala ' +
+            code +
+            "…</p>",
+        );
+        const th = TBASE + code + "/h"; // el anfitrión habla aquí
+        const tg = TBASE + code + "/g"; // …y yo publico aquí
+        const client = await connectBroker(tg);
+        if (!net || !net.alive) return;
+        if (!client) {
+          netFail(
+            "No hay conexión con los servidores de sala. Revisa tu internet e inténtalo de nuevo.",
+          );
+          return;
+        }
+        client.subscribe(th, { qos: 1 });
+        net.send = (o) => client.publish(tg, JSON.stringify(o), { qos: 1 });
+        net.hbTimer = setInterval(
+          () => netSend({ t: "hb", name: net.myName }),
+          2500,
+        );
+        netSend({ t: "hb", name: net.myName }); // primer saludo ya mismo
+        startWatchdog();
+        net.watchTimer = setTimeout(() => {
+          if (net.connected) return;
+          netFail(
+            "No se encontró una sala abierta con el código " +
+              code +
+              ". Verifica el código y que el anfitrión tenga la sala abierta.",
+          );
+        }, 8000);
+      }
+      function netFail(msg) {
+        setNetButtons(false);
+        netShow(
+          '<p class="hint" style="color:var(--red)">' + msg + "</p>",
+          true,
+        );
+      }
+      function startWatchdog() {
+        if (net.watchdog) clearInterval(net.watchdog);
+        net.watchdog = setInterval(() => {
+          if (
+            S &&
+            S.mode === "online" &&
+            !S.over &&
+            net.connected &&
+            Date.now() - net.lastSeen > 9000
+          ) {
+            net.connected = false;
+            handleNetDown();
+          }
+        }, 3000);
+      }
+
+      /* ---------- protocolo entre jugadores ---------- */
       function onNetMsg(m) {
         if (!m || !m.t) return;
+        net.lastSeen = Date.now();
         switch (m.t) {
-          case "hello": // (anfitrión) el rival presentó nombre + cartón
-            net.guestName = m.name;
-            net.guestCard = m.card;
-            hostStart();
+          case "hb": // latido: sirve de saludo, de anuncio y de "estoy vivo"
+            if (net.isHost) {
+              if (!S) {
+                if (net.starting && net.lastStart) {
+                  netSend(net.lastStart);
+                  break;
+                } // reenviar si se perdió
+                net.oppName = (m.name || "Rival").slice(0, 12);
+                hostStart();
+              } else if (
+                S.over &&
+                net.lastStart &&
+                Date.now() - (S.tokenStart || 0) < 4000
+              ) {
+                netSend(net.lastStart); // por si el rival aún no recibió el arranque
+              }
+            } else if (!S && !net.sawOpen) {
+              net.sawOpen = true;
+              if (net.watchTimer) {
+                clearTimeout(net.watchTimer);
+                net.watchTimer = null;
+              }
+              netShow(
+                '<p class="hint"><span class="spin"></span>¡Sala encontrada! Conectando…</p>',
+              );
+            }
             break;
-          case "start": // (invitado) el anfitrión reparte
+          case "start":
+            if (net.isHost) break;
+            if (S && !S.over) break;
+            if (net.watchTimer) {
+              clearTimeout(net.watchTimer);
+              net.watchTimer = null;
+            }
+            if (net.hbTimer) {
+              clearInterval(net.hbTimer);
+              net.hbTimer = null;
+            }
+            if (!Array.isArray(m.hcard) || !Array.isArray(m.gcard)) break;
+            net.hbTimer = setInterval(
+              () => netSend({ t: "hb", name: net.myName }),
+              2500,
+            );
             startMatch({
               mode: "online",
               myName: net.myName,
-              oppName: m.name,
-              myCard: net.myCard,
-              oppCard: m.card,
+              oppName: (m.hname || "Rival").slice(0, 12),
+              myCard: m.gcard,
+              oppCard: m.hcard,
               iCallFirst: m.first === "guest",
             });
             break;
           case "call": {
-            // el rival llamó un número: debo encontrarlo
-            if (!S || S.over) break;
+            if (!S || S.over || net.isHost === (S.mode !== "online")) break;
+            if (S.phase === "myFind" && S.target === m.n) break; // duplicado
             sPop();
-            applyMark("opp", S.opp.card.indexOf(m.n));
+            const i = S.opp.card.indexOf(m.n);
+            if (i < 0 || S.opp.marked[i]) break;
+            applyMark("opp", i);
             if (S.over) break;
             S.target = m.n;
             setPhase("myFind");
             break;
           }
           case "found": {
-            // el rival encontró mi número
             if (!S || S.over) break;
             sPop();
-            applyMark("opp", S.opp.card.indexOf(m.n));
+            const i = S.opp.card.indexOf(m.n);
+            if (i < 0 || S.opp.marked[i]) break;
+            applyMark("opp", i);
             if (S.over) break;
-            setPhase("oppCall"); // ahora él llama
+            setPhase("oppCall");
             break;
           }
+          case "busy":
+            if (!S) netFail("Esa sala ya está jugando una partida.");
+            break;
+          case "closed":
+            if (!S && !net.isHost) netFail("El anfitrión cerró la sala.");
+            break;
+          case "bye":
+            handleNetDown();
+            break;
           case "rematch":
-            rematch.opp = true;
-            if (m.card) net.guestCard = m.card;
-            tryOnlineRematch();
+            if (S && S.over) {
+              rematch.opp = true;
+              tryOnlineRematch();
+            }
             break;
         }
       }
       function hostStart() {
-        const myCard = buildCard();
+        if (net.starting) return;
+        net.starting = true;
+        const hcard = buildCard(),
+          gcard = buildCard();
         const first = Math.random() < 0.5 ? "host" : "guest";
-        netSend({ t: "start", name: net.myName, card: myCard, first });
+        const msg = {
+          t: "start",
+          hname: net.myName,
+          gname: net.oppName,
+          hcard,
+          gcard,
+          first,
+        };
+        net.lastStart = msg;
+        netSend(msg);
         startMatch({
           mode: "online",
           myName: net.myName,
-          oppName: net.guestName,
-          myCard,
-          oppCard: net.guestCard,
+          oppName: net.oppName,
+          myCard: hcard,
+          oppCard: gcard,
           iCallFirst: first === "host",
         });
+        S.tokenStart = Date.now();
+        net.starting = false;
       }
       function tryOnlineRematch() {
         if (!(rematch.me && rematch.opp)) return;
-        if (net.isHost) hostStart(); // el invitado espera el 'start'
+        if (net.isHost) hostStart(); // el invitado espera el nuevo 'start'
+      }
+      function handleNetDown() {
+        if (S && S.mode === "online") {
+          if (!S.over) {
+            openModal(`<h3>Conexión perdida</h3>
+        <p class="big">${S.opp.name} se ha desconectado.</p>
+        <div class="mbtns"><button class="btn" id="mLeave2">Volver al menú</button></div>`);
+            $("#mLeave2").onclick = () => {
+              closeModal();
+              netReset();
+              goLobby();
+            };
+          }
+        } else if (net && net.alive && !net.isHost) {
+          netFail("Tu rival se desconectó antes de empezar.");
+        }
+      }
+
+      /* ---------- UI de espera / compartir ---------- */
+      function getName() {
+        return $("#nameOnline").value.trim() || "Jugador";
+      }
+      function netShow(html, err) {
+        const el = $("#netStatus");
+        el.classList.remove("hidden");
+        el.classList.toggle("err", !!err);
+        el.innerHTML = html;
+        lucide.createIcons();
+      }
+      function netShowWaitingUI() {
+        const share = /^https?:$/.test(location.protocol)
+          ? location.origin + location.pathname + "#sala=" + net.code
+          : null;
+        let btns =
+          '<button class="copybtn" id="copyCodeBtn"><i data-lucide="copy"></i> Copiar código</button>';
+        if (share) {
+          btns +=
+            '<button class="copybtn" id="copyLinkBtn"><i data-lucide="link"></i> Copiar enlace</button>';
+          if (navigator.share)
+            btns +=
+              '<button class="copybtn" id="shareBtn"><i data-lucide="share-2"></i> Enviar</button>';
+        }
+        netShow(`
+    <p class="hint">Comparte este código con tu rival</p>
+    <div class="bigcode">${net.code}</div>
+    <div class="copyrow">${btns}</div>
+    <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival…</p>`);
+        $("#copyCodeBtn").onclick = () => copyText(net.code, $("#copyCodeBtn"));
+        const lb = $("#copyLinkBtn");
+        if (lb) lb.onclick = () => copyText(share, lb);
+        const sb = $("#shareBtn");
+        if (sb)
+          sb.onclick = async () => {
+            try {
+              await navigator.share({
+                title: "Bingo",
+                text: "Entra a mi sala de Bingo con el código " + net.code,
+                url: share,
+              });
+            } catch (e) {
+              /* cancelado */
+            }
+          };
+      }
+      function copyText(text, btn) {
+        const done = () => {
+          const old = btn.innerHTML;
+          btn.innerHTML = '<i data-lucide="check"></i> Copiado';
+          lucide.createIcons();
+          setTimeout(() => {
+            btn.innerHTML = old;
+            lucide.createIcons();
+          }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(text)
+            .then(done)
+            .catch(() => {
+              fallbackCopy(text);
+              done();
+            });
+        } else {
+          fallbackCopy(text);
+          done();
+        }
+      }
+      function fallbackCopy(t) {
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+        } catch (e) {}
+        ta.remove();
       }
 
       /* ================= VICTORIA ================= */
@@ -2270,7 +2519,7 @@
     <ol>
       <li>Los dos cartones tienen <b>los mismos números del 1 al 25</b>, mezclados en distinto orden.</li>
       <li>En tu turno de <b>llamar</b>, toca cualquier casilla libre de tu cartón: ese número queda marcado para ti… y el rival deberá <b>buscarlo</b> en el suyo.</li>
-      <li>Cuando el rival llama, <b>encuentra su número</b> en tu cartón y tócalo. Así se alternan los roles: quien encuentra, llama después.</li>
+      <li>Cuando el rival llama, <b>encuentra su número</b> en tu cartón y tócalo. Quien encuentra, llama después.</li>
       <li>Cada línea completa (fila, columna o diagonal) estampa una letra sobre B·I·N·G·O, siempre en ese orden.</li>
       <li>El primero en estampar las cinco letras canta <b>¡BINGO!</b> y gana.</li>
     </ol>
@@ -2296,85 +2545,9 @@
         S = null;
         hideWin();
         closeModal();
-        $("#netStatus").classList.add("hidden");
+        setNetButtons(false);
         $("#game").classList.add("hidden");
         $("#lobby").classList.remove("hidden");
-      }
-
-      /* ================= LOBBY: ESTADO DE RED ================= */
-      function getName() {
-        return $("#nameOnline").value.trim() || "Jugador";
-      }
-      function netShow(html, err) {
-        const el = $("#netStatus");
-        el.classList.remove("hidden");
-        el.classList.toggle("err", !!err);
-        el.innerHTML = html;
-        lucide.createIcons();
-      }
-      function netShowErr(t) {
-        netShow('<p class="hint" style="color:var(--red)">' + t + "</p>", true);
-      }
-      function netShowCreating() {
-        netShow('<p class="hint"><span class="spin"></span>Creando sala…</p>');
-      }
-      function netShowJoining(code) {
-        netShow(
-          '<p class="hint"><span class="spin"></span>Conectando con la sala ' +
-            code +
-            "…</p>",
-        );
-      }
-      function netShowReady() {
-        netShow(
-          '<p class="hint"><span class="spin"></span>¡Rival conectado! Repartiendo cartones…</p>',
-        );
-      }
-      function netShowWaiting() {
-        netShow(`
-    <p class="hint">Comparte este código con tu rival</p>
-    <div class="bigcode">${net.code}</div>
-    <div class="copyline"><button class="copybtn" id="copyBtn"><i data-lucide="copy"></i> Copiar</button></div>
-    <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival…</p>`);
-        $("#copyBtn").onclick = copyCode;
-      }
-      function copyCode() {
-        const c = net.code;
-        const done = () => {
-          const b = $("#copyBtn");
-          if (!b) return;
-          b.innerHTML = '<i data-lucide="check"></i> Copiado';
-          lucide.createIcons();
-          setTimeout(() => {
-            const b2 = $("#copyBtn");
-            if (b2) {
-              b2.innerHTML = '<i data-lucide="copy"></i> Copiar';
-              lucide.createIcons();
-            }
-          }, 1400);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard
-            .writeText(c)
-            .then(done)
-            .catch(() => {
-              fallbackCopy(c);
-              done();
-            });
-        } else {
-          fallbackCopy(c);
-          done();
-        }
-      }
-      function fallbackCopy(t) {
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand("copy");
-        } catch (e) {}
-        ta.remove();
       }
 
       /* ================= LOBBY: INTERACCIONES ================= */
@@ -2416,24 +2589,33 @@
       });
       $("#btnCreate").addEventListener("click", () => {
         sClick();
-        hostAttempts = 0;
         createRoom();
       });
       $("#btnJoin").addEventListener("click", () => {
         sClick();
-        hostAttempts = 0;
-        joinRoom();
+        joinRoomByCode();
       });
       $("#codeInput").addEventListener("input", (e) => {
         e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
       });
       $("#codeInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") joinRoom();
+        if (e.key === "Enter") joinRoomByCode();
       });
       $("#btnRules").addEventListener("click", () => {
         sClick();
         showRules();
       });
+
+      /* enlace de invitación: #sala=XXXX deja el código listo → solo pulsar Unirse */
+      const mHash = location.hash.match(/sala=([A-Za-z0-9]{4})/);
+      if (mHash) {
+        selectMode("net");
+        $("#codeInput").value = mHash[1].toUpperCase();
+        netShow(
+          '<p class="hint">Sala cargada desde el enlace · pon tu nombre y pulsa <b>Unirse</b>.</p>',
+        );
+        $("#btnJoin").focus();
+      }
 
       /* ================= HEADER DEL JUEGO ================= */
       $("#btnSound").addEventListener("click", () => {
@@ -2470,12 +2652,7 @@
         }
         if (rematch.me) return;
         rematch.me = true;
-        const msg = { t: "rematch" };
-        if (!net.isHost) {
-          net.myCard = buildCard();
-          msg.card = net.myCard;
-        }
-        netSend(msg);
+        netSend({ t: "rematch" });
         const rb = $("#btnRematch");
         rb.disabled = true;
         rb.textContent = "Esperando a " + S.opp.name + "…";
