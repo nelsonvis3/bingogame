@@ -39,7 +39,8 @@
         cursor: pointer;
         color: inherit;
       }
-      input {
+      input,
+      textarea {
         font: inherit;
       }
       .hidden {
@@ -255,7 +256,7 @@
       }
 
       .setup {
-        width: min(420px, 100%);
+        width: min(440px, 100%);
         background: rgba(6, 28, 19, 0.35);
         border: 1.5px dashed rgba(247, 240, 223, 0.35);
         border-radius: 14px;
@@ -295,7 +296,7 @@
         padding: 8px 4px;
         border-radius: 6px;
         font-weight: 700;
-        font-size: 17px;
+        font-size: 16px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--ink-soft);
@@ -305,7 +306,7 @@
         background: var(--ink);
         color: var(--paper);
       }
-      .setup input {
+      .setup input[type="text"] {
         width: 100%;
         padding: 10px 12px;
         border-radius: 8px;
@@ -434,6 +435,82 @@
       .copybtn svg {
         width: 15px;
         height: 15px;
+      }
+
+      /* modo directo (copiar/pegar) */
+      .dsteps {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 4px;
+      }
+      .dstep {
+        background: var(--paper);
+        border-radius: 10px;
+        padding: 12px;
+        box-shadow: 0 3px 0 rgba(9, 32, 22, 0.35);
+      }
+      .dstep h4 {
+        font-size: 13.5px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dstep h4 .n {
+        background: var(--ink);
+        color: var(--paper);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .dstep textarea {
+        width: 100%;
+        height: 62px;
+        margin-top: 8px;
+        border: 2px solid #cbbd9c;
+        border-radius: 8px;
+        background: var(--paper-3);
+        font:
+          12px/1.4 ui-monospace,
+          monospace;
+        padding: 8px;
+        resize: vertical;
+        color: var(--ink);
+        outline: none;
+        word-break: break-all;
+      }
+      .dstep textarea:focus {
+        border-color: var(--red);
+      }
+      .dstep textarea[readonly] {
+        background: var(--paper-2);
+        color: var(--ink-soft);
+      }
+      .dstep .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .btn.sm {
+        padding: 9px 18px;
+        font-size: 16px;
+        width: auto;
+        margin-top: 0;
+      }
+      .hint-mini {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--ink-soft);
       }
 
       .btn {
@@ -1275,8 +1352,8 @@
         <button class="ticket" id="tkNet">
           <span class="ticon"><i data-lucide="wifi"></i></span>
           <span
-            ><h3>1 vs 1 online</h3>
-            <p>Crea una sala y jueguen en pantallas separadas</p></span
+            ><h3>1 vs 1 en línea</h3>
+            <p>Jueguen en dispositivos distintos, sin servidor propio</p></span
           >
           <span class="perf"></span>
           <span class="tick"><i data-lucide="check"></i></span>
@@ -1295,29 +1372,108 @@
 
       <div class="setup hidden" id="setupNet">
         <label>Tu nombre</label>
-        <input id="nameOnline" maxlength="12" value="Jugador 1" />
-        <button class="btn" id="btnCreate">Crear sala</button>
-        <div class="or">O ÚNETE A UNA</div>
-        <div class="joinrow">
-          <input
-            id="codeInput"
-            maxlength="4"
-            placeholder="CÓDIGO"
-            autocomplete="off"
-          />
-          <button class="btn" id="btnJoin">Unirse</button>
+        <input type="text" id="nameOnline" maxlength="12" value="Jugador 1" />
+
+        <label>Forma de conexión</label>
+        <div class="seg" id="segNet">
+          <button data-n="auto" class="on">Automática</button>
+          <button data-n="direct">Directa (100% segura)</button>
         </div>
+
+        <!-- ======== MODO AUTOMÁTICO ======== -->
+        <div id="autoPanel">
+          <button class="btn" id="btnCreate">Crear sala</button>
+          <div class="or">O ÚNETE A UNA</div>
+          <div class="joinrow">
+            <input
+              type="text"
+              id="codeInput"
+              maxlength="4"
+              placeholder="CÓDIGO"
+              autocomplete="off"
+            />
+            <button class="btn" id="btnJoin">Unirse</button>
+          </div>
+          <p class="netnote">
+            Los navegadores se encuentran solos por servidores públicos. Ideal
+            si ambos tenéis buena conexión. Si falla en vuestra red, usad el
+            modo Directo.
+          </p>
+        </div>
+
+        <!-- ======== MODO DIRECTO ======== -->
+        <div id="directPanel" class="hidden">
+          <div class="dsteps">
+            <div class="dstep">
+              <h4><span class="n">1</span> El anfitrión crea la invitación</h4>
+              <div class="row">
+                <button class="btn sm" id="btnInvite">Crear invitación</button>
+              </div>
+              <textarea
+                id="taOffer"
+                class="hidden"
+                readonly
+                placeholder="El código de invitación aparecerá aquí"
+              ></textarea>
+              <div class="row hidden" id="offerRow">
+                <button class="copybtn" id="btnCopyOffer">
+                  <i data-lucide="copy"></i> Copiar invitación
+                </button>
+                <span class="hint-mini">Envíala a tu rival</span>
+              </div>
+            </div>
+            <div class="dstep">
+              <h4>
+                <span class="n">2</span> El rival pega la invitación y responde
+              </h4>
+              <div class="row">
+                <textarea
+                  id="taOfferIn"
+                  placeholder="Pega aquí la invitación del anfitrión"
+                ></textarea>
+              </div>
+              <div class="row">
+                <button class="btn sm" id="btnAnswer">Generar respuesta</button>
+              </div>
+              <textarea
+                id="taAnswer"
+                class="hidden"
+                readonly
+                placeholder="La respuesta aparecerá aquí"
+              ></textarea>
+              <div class="row hidden" id="answerRow">
+                <button class="copybtn" id="btnCopyAnswer">
+                  <i data-lucide="copy"></i> Copiar respuesta
+                </button>
+                <span class="hint-mini">Envíala de vuelta al anfitrión</span>
+              </div>
+            </div>
+            <div class="dstep">
+              <h4><span class="n">3</span> El anfitrión pega la respuesta</h4>
+              <div class="row">
+                <textarea
+                  id="taAnswerIn"
+                  placeholder="Pega aquí la respuesta del rival"
+                ></textarea>
+              </div>
+              <div class="row">
+                <button class="btn sm" id="btnConnect">Conectar</button>
+              </div>
+            </div>
+          </div>
+          <p class="netnote">
+            Conexión punto a punto pura: los datos viajan directo entre los dos
+            navegadores. Funciona entre cualquier dispositivo (celular, tablet,
+            PC) aunque los servidores públicos estén caídos.
+          </p>
+        </div>
+
         <div id="netStatus" class="netstatus hidden"></div>
-        <p class="netnote">
-          Conexión directa entre navegadores (P2P) por trackers públicos
-          abiertos, sin cuentas ni servidores propios. Comparte el código o el
-          enlace y cada quien juega en su pantalla, en cualquier dispositivo.
-        </p>
       </div>
 
       <button class="rules-link" id="btnRules">¿cómo se juega?</button>
       <p class="lobby-foot">
-        Números del 1 al 25 · Funciona en cualquier dispositivo
+        Números del 1 al 25 · Cartones iguales, distinto orden
       </p>
     </section>
 
@@ -1494,7 +1650,7 @@
       };
       const sLose = () => tone(330, 165, 0.5, "sine", 0.16);
 
-      /* ================= CARTONES ================= */
+      /* ================= CARTONES: mismos números (1-25), orden distinto ================= */
       function shuffle(a) {
         for (let i = a.length - 1; i > 0; i--) {
           const j = (Math.random() * (i + 1)) | 0;
@@ -1580,8 +1736,10 @@
         hideWin();
         closeModal();
         $("#roomChip").classList.toggle("hidden", o.mode !== "online");
-        if (o.mode === "online")
-          $("#roomChip").textContent = "SALA " + net.code;
+        if (o.mode === "online") {
+          $("#roomChip").textContent =
+            net.mode === "auto" ? "SALA " + net.code : "CONEXIÓN DIRECTA";
+        }
         $("#oppName").textContent = S.opp.name;
         $("#name0").textContent = S.me.name;
         buildBoard();
@@ -1860,42 +2018,133 @@
         return bestN;
       }
 
-      /* ================= RED (Trystero · P2P por trackers abiertos) =================
-   Señalización sin servidor propio: los navegadores se encuentran mediante
-   trackers WebTorrent públicos (wss). Fallbacks de CDN por si uno falla.  */
-      let TRYST = null,
-        trystLoading = null;
-      const TRYST_SOURCES = [
-        "https://esm.sh/trystero@0.21/torrent",
-        "https://esm.sh/trystero/torrent",
-        "https://cdn.jsdelivr.net/npm/trystero@0.21/dist/trystero-torrent.min.js",
-      ];
-      function loadTrystero() {
-        if (TRYST) return Promise.resolve(TRYST);
-        if (trystLoading) return trystLoading;
-        trystLoading = (async () => {
-          for (const url of TRYST_SOURCES) {
-            try {
-              const m = await import(url);
-              if (m && typeof m.joinRoom === "function") return (TRYST = m);
-            } catch (e) {
-              /* probar siguiente fuente */
-            }
-          }
-          trystLoading = null;
-          return null;
-        })();
-        return trystLoading;
-      }
+      /* =====================================================================
+   RED — DOS MODOS, COMPARTEN EL MISMO PROTOCOLO DE MENSAJES
+   A) AUTOMÁTICO : Trystero (MQTT → Nostr → Torrent, servidores públicos)
+   B) DIRECTO    : WebRTC puro con señalización copiar/pegar (infalible)
+   ===================================================================== */
 
-      const APP_ID = "bingo25x5-duelo-v1";
       const RTC_CFG = {
         iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
+          {
+            urls: [
+              "stun:stun.l.google.com:19302",
+              "stun:stun1.l.google.com:19302",
+            ],
+          },
           { urls: "stun:stun.cloudflare.com:3478" },
+          // relay público de la comunidad (atraviesa NATs difíciles: datos móviles, dobles NAT…)
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443?transport=tcp",
+            username: "openrelayproject",
+            credential: "openrelayproject",
+          },
         ],
       };
+
+      let net = null;
+      function netFresh() {
+        return {
+          mode: null, // 'auto' | 'direct'
+          connected: false,
+          isHost: false,
+          code: "",
+          myName: "",
+          myCard: null,
+          oppName: "",
+          oppCard: null,
+          oppPeerId: null,
+          lastStart: null,
+          // automático
+          room: null,
+          send: null,
+          helloTimer: null,
+          watchTimer: null,
+          // directo
+          pc: null,
+          dc: null,
+        };
+      }
+      net = netFresh();
+      let rematch = { me: false, opp: false };
+
+      function netReset() {
+        if (net) {
+          if (net.helloTimer) clearInterval(net.helloTimer);
+          if (net.watchTimer) clearTimeout(net.watchTimer);
+          try {
+            net.room && net.room.leave();
+          } catch (e) {}
+          try {
+            net.dc && net.dc.close();
+          } catch (e) {}
+          try {
+            net.pc && net.pc.close();
+          } catch (e) {}
+        }
+        net = netFresh();
+        rematch = { me: false, opp: false };
+      }
+      function netSend(o) {
+        try {
+          if (net.mode === "auto" && net.send)
+            net.send(o, net.oppPeerId || undefined);
+          else if (
+            net.mode === "direct" &&
+            net.dc &&
+            net.dc.readyState === "open"
+          )
+            net.dc.send(JSON.stringify(o));
+        } catch (e) {}
+      }
+
+      /* ---------- carga de Trystero con fallbacks ---------- */
+      function loadScript(src, timeout = 8000) {
+        return new Promise((res, rej) => {
+          const s = document.createElement("script");
+          let done = false;
+          const finish = (ok) => {
+            if (!done) {
+              done = true;
+              ok ? res() : rej();
+            }
+          };
+          s.onload = () => finish(true);
+          s.onerror = () => finish(false);
+          setTimeout(() => finish(false), timeout);
+          s.src = src;
+          document.head.appendChild(s);
+        });
+      }
+      const TRYST_SOURCES = [
+        "https://cdn.jsdelivr.net/npm/trystero@0.21/dist/trystero-mqtt.min.js",
+        "https://unpkg.com/trystero@0.21/dist/trystero-mqtt.min.js",
+        "https://cdn.jsdelivr.net/npm/trystero/dist/trystero-nostr.min.js",
+        "https://unpkg.com/trystero/dist/trystero-nostr.min.js",
+        "https://cdn.jsdelivr.net/npm/trystero/dist/trystero-torrent.min.js",
+      ];
+      async function netLib() {
+        if (window.trystero) return window.trystero;
+        for (const url of TRYST_SOURCES) {
+          try {
+            await loadScript(url);
+            if (window.trystero) return window.trystero;
+          } catch (e) {}
+        }
+        return null;
+      }
+
+      const APP_ID = "bingo25x5-duelo-v2";
       const CODE_AB = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       function genCode() {
         let s = "";
@@ -1904,155 +2153,81 @@
         return s;
       }
 
-      let net = null;
-      function netFresh() {
-        return {
-          room: null,
-          send: null,
-          oppPeerId: null,
-          isHost: false,
-          code: "",
-          connected: false,
-          myName: "",
-          myCard: null,
-          oppName: "",
-          oppCard: null,
-          lastStart: null,
-          helloTimer: null,
-          watchTimer: null,
-        };
+      /* ---------- helpers compartidos ---------- */
+      function getName() {
+        return $("#nameOnline").value.trim() || "Jugador";
       }
-      net = netFresh();
-      let rematch = { me: false, opp: false };
-
-      function netReset() {
-        if (net.helloTimer) clearInterval(net.helloTimer);
-        if (net.watchTimer) clearTimeout(net.watchTimer);
-        try {
-          net.room && net.room.leave();
-        } catch (e) {}
-        net = netFresh();
-        rematch = { me: false, opp: false };
+      function netShow(html, err) {
+        const el = $("#netStatus");
+        el.classList.remove("hidden");
+        el.classList.toggle("err", !!err);
+        el.innerHTML = html;
+        lucide.createIcons();
       }
-      function netSend(o) {
-        try {
-          if (net.send) net.send(o, net.oppPeerId || undefined);
-        } catch (e) {}
+      function netShowErr(t) {
+        netShow('<p class="hint" style="color:var(--red)">' + t + "</p>", true);
+      }
+      function netShowReady() {
+        netShow(
+          '<p class="hint"><span class="spin"></span>¡Rival conectado! Repartiendo cartones…</p>',
+        );
       }
       function setNetButtons(dis) {
         $("#btnCreate").disabled = dis;
         $("#btnJoin").disabled = dis;
       }
 
-      async function createRoom() {
-        netReset();
-        setNetButtons(true);
-        net.isHost = true;
-        net.myName = getName();
-        net.code = genCode();
-        netShow(
-          '<p class="hint"><span class="spin"></span>Preparando sala…</p>',
-        );
-        const lib = await loadTrystero();
-        if (!lib) {
-          netFail(
-            "No se pudo cargar el módulo de conexión. Verifica tu internet y recarga la página.",
-          );
-          return;
+      function copyText(text, btn) {
+        const done = () => {
+          const old = btn.innerHTML;
+          btn.innerHTML = '<i data-lucide="check"></i> Copiado';
+          lucide.createIcons();
+          setTimeout(() => {
+            btn.innerHTML = old;
+            lucide.createIcons();
+          }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(text)
+            .then(done)
+            .catch(() => {
+              fallbackCopy(text);
+              done();
+            });
+        } else {
+          fallbackCopy(text);
+          done();
         }
-        netShow('<p class="hint"><span class="spin"></span>Abriendo sala…</p>');
-        openChannel();
       }
-      async function joinRoomByCode() {
-        const code = $("#codeInput").value.trim().toUpperCase();
-        if (code.length !== 4) {
-          netFail("El código de sala tiene 4 caracteres.");
-          return;
-        }
-        netReset();
-        setNetButtons(true);
-        net.isHost = false;
-        net.myName = getName();
-        net.code = code;
-        netShow(
-          '<p class="hint"><span class="spin"></span>Cargando módulo de conexión…</p>',
-        );
-        const lib = await loadTrystero();
-        if (!lib) {
-          netFail(
-            "No se pudo cargar el módulo de conexión. Verifica tu internet y recarga la página.",
-          );
-          return;
-        }
-        netShow(
-          '<p class="hint"><span class="spin"></span>Conectando con la sala ' +
-            code +
-            "…</p>",
-        );
-        openChannel();
-      }
-      function netFail(msg) {
-        setNetButtons(false);
-        netShowErr(msg);
+      function fallbackCopy(t) {
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        document.body.appendChild(ta);
+        ta.select();
         try {
-          net.room && net.room.leave();
+          document.execCommand("copy");
         } catch (e) {}
+        ta.remove();
       }
 
-      function openChannel() {
-        try {
-          net.room = TRYST.joinRoom(
-            { appId: APP_ID, rtcConfig: RTC_CFG },
-            net.code,
-          );
-        } catch (e) {
-          netFail("No se pudo abrir la sala. Inténtalo de nuevo.");
-          return;
-        }
-        const [send, get] = net.room.makeAction("g");
-        net.send = send;
-        get(onNetMsg);
-        net.room.onPeerJoin(onPeerJoin);
-        net.room.onPeerLeave(handleNetDown);
-        // si en 20s nadie aparece, avisamos con mensaje claro
-        net.watchTimer = setTimeout(() => {
-          if (net.connected) return;
-          netFail(
-            net.isHost
-              ? "Nadie se ha unido aún. Comparte el código o el enlace, o vuelve a intentarlo."
-              : "No se encontró la sala. Verifica el código y que tu rival esté con la sala abierta.",
-          );
-        }, 20000);
-      }
-
-      function onPeerJoin(pid) {
-        // sala ocupada: si ya estamos jugando con alguien, se rechaza a terceros
-        if (net.connected && net.oppPeerId && pid !== net.oppPeerId) {
-          try {
-            net.send({ t: "full" }, pid);
-          } catch (e) {}
-          return;
-        }
+      function peerReady() {
         net.connected = true;
-        net.oppPeerId = pid;
         if (net.watchTimer) {
           clearTimeout(net.watchTimer);
           net.watchTimer = null;
         }
-        if (net.isHost) {
-          netShowReady(); // esperamos su 'hello'
-        } else {
+        netShowReady();
+        if (!net.isHost) {
           net.myCard = buildCard();
-          netSend({ t: "hello", name: net.myName, card: net.myCard });
-          netShowReady();
-          // reintentos por si el primer 'hello' no llega
+          const hello = () =>
+            netSend({ t: "hello", name: net.myName, card: net.myCard });
+          hello();
           if (net.helloTimer) clearInterval(net.helloTimer);
-          net.helloTimer = setInterval(
-            () => netSend({ t: "hello", name: net.myName, card: net.myCard }),
-            4000,
-          );
+          net.helloTimer = setInterval(hello, 3500); // por si el primer saludo se pierde
         }
       }
+
       function handleNetDown() {
         if (!net.connected) return;
         net.connected = false;
@@ -2074,7 +2249,7 @@
         }
       }
 
-      /* --- protocolo entre jugadores --- */
+      /* ---------- protocolo de mensajes (idéntico en ambos modos) ---------- */
       function onNetMsg(m) {
         if (!m || !m.t) return;
         switch (m.t) {
@@ -2125,7 +2300,8 @@
             break;
           }
           case "full":
-            netFail("Esa sala ya está ocupada por otra partida.");
+            setNetButtons(false);
+            netShowErr("Esa sala ya está ocupada por otra partida.");
             break;
           case "rematch":
             rematch.opp = true;
@@ -2152,6 +2328,277 @@
       function tryOnlineRematch() {
         if (!(rematch.me && rematch.opp)) return;
         if (net.isHost) hostStart(); // el invitado espera el nuevo 'start'
+      }
+
+      /* ---------- MODO AUTOMÁTICO (Trystero) ---------- */
+      async function createRoom() {
+        netReset();
+        setNetButtons(true);
+        net.mode = "auto";
+        net.isHost = true;
+        net.myName = getName();
+        net.code = genCode();
+        netShow(
+          '<p class="hint"><span class="spin"></span>Preparando sala…</p>',
+        );
+        const lib = await netLib();
+        if (!lib) {
+          setNetButtons(false);
+          netShowErr(
+            "No se pudo cargar el módulo de conexión. Prueba el modo <b>Directo</b>, que no depende de servidores.",
+          );
+          return;
+        }
+        try {
+          net.room = lib.joinRoom(
+            { appId: APP_ID, rtcConfig: RTC_CFG },
+            "sala-" + net.code,
+          );
+        } catch (e) {
+          setNetButtons(false);
+          netShowErr(
+            "No se pudo abrir la sala. Inténtalo de nuevo o usa el modo Directo.",
+          );
+          return;
+        }
+        const [send, get] = net.room.makeAction("g");
+        net.send = send;
+        get(onNetMsg);
+        net.room.onPeerJoin((pid) => {
+          if (net.connected && net.oppPeerId && pid !== net.oppPeerId) {
+            try {
+              net.send({ t: "full" }, pid);
+            } catch (e) {}
+            return;
+          }
+          net.oppPeerId = pid;
+          peerReady();
+        });
+        net.room.onPeerLeave((pid) => {
+          if (pid === net.oppPeerId) handleNetDown();
+        });
+        net.watchTimer = setTimeout(() => {
+          if (net.connected) return;
+          setNetButtons(false);
+          netShowErr(
+            "Nadie se ha unido todavía. Comparte el código (o el enlace de invitación) y mantén esta pantalla abierta. Si tu red lo bloquea, usa el modo <b>Directo</b>.",
+          );
+        }, 25000);
+        showWaitingUI();
+      }
+      async function joinRoomByCode() {
+        const code = $("#codeInput").value.trim().toUpperCase();
+        if (code.length !== 4) {
+          netShowErr("El código de sala tiene 4 caracteres.");
+          return;
+        }
+        netReset();
+        setNetButtons(true);
+        net.mode = "auto";
+        net.isHost = false;
+        net.myName = getName();
+        net.code = code;
+        netShow(
+          '<p class="hint"><span class="spin"></span>Cargando módulo de conexión…</p>',
+        );
+        const lib = await netLib();
+        if (!lib) {
+          setNetButtons(false);
+          netShowErr(
+            "No se pudo cargar el módulo de conexión. Prueba el modo <b>Directo</b>, que no depende de servidores.",
+          );
+          return;
+        }
+        netShow(
+          '<p class="hint"><span class="spin"></span>Conectando con la sala ' +
+            code +
+            "…</p>",
+        );
+        try {
+          net.room = lib.joinRoom(
+            { appId: APP_ID, rtcConfig: RTC_CFG },
+            "sala-" + code,
+          );
+        } catch (e) {
+          setNetButtons(false);
+          netShowErr(
+            "No se pudo abrir la conexión. Inténtalo de nuevo o usa el modo Directo.",
+          );
+          return;
+        }
+        const [send, get] = net.room.makeAction("g");
+        net.send = send;
+        get(onNetMsg);
+        net.room.onPeerJoin((pid) => {
+          if (net.connected && net.oppPeerId && pid !== net.oppPeerId) {
+            return;
+          }
+          net.oppPeerId = pid;
+          peerReady();
+        });
+        net.room.onPeerLeave((pid) => {
+          if (pid === net.oppPeerId) handleNetDown();
+        });
+        net.watchTimer = setTimeout(() => {
+          if (net.connected) return;
+          setNetButtons(false);
+          netShowErr(
+            "No se encontró la sala. Verifica el código y que tu rival tenga la sala abierta. Si tu red lo bloquea, usa el modo <b>Directo</b>.",
+          );
+        }, 20000);
+      }
+      function showWaitingUI() {
+        const share = /^https?:$/.test(location.protocol)
+          ? location.origin + location.pathname + "#sala=" + net.code
+          : null;
+        netShow(`
+    <p class="hint">Comparte esta sala con tu rival</p>
+    <div class="bigcode">${net.code}</div>
+    <div class="copyrow">
+      <button class="copybtn" id="copyCodeBtn"><i data-lucide="copy"></i> Copiar código</button>
+      ${share ? '<button class="copybtn" id="copyLinkBtn"><i data-lucide="link"></i> Copiar enlace</button>' : ""}
+    </div>
+    <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival…</p>`);
+        $("#copyCodeBtn").onclick = () => copyText(net.code, $("#copyCodeBtn"));
+        const lb = $("#copyLinkBtn");
+        if (lb) lb.onclick = () => copyText(share, lb);
+      }
+
+      /* ---------- MODO DIRECTO (WebRTC puro, copiar/pegar) ---------- */
+      const b64 = (s) =>
+        btoa(unescape(encodeURIComponent(s)))
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_");
+      const unb64 = (s) =>
+        decodeURIComponent(
+          escape(atob(s.replace(/-/g, "+").replace(/_/g, "/").trim())),
+        );
+
+      function gatheringDone(pc) {
+        return new Promise((res) => {
+          if (pc.iceGatheringState === "complete") return res();
+          const t = setTimeout(res, 3500); // no esperamos eternamente
+          pc.addEventListener("icegatheringstatechange", () => {
+            if (pc.iceGatheringState === "complete") {
+              clearTimeout(t);
+              res();
+            }
+          });
+        });
+      }
+      function wireDirect() {
+        const dc = net.dc,
+          pc = net.pc;
+        dc.onopen = () => peerReady();
+        dc.onclose = () => handleNetDown();
+        dc.onmessage = (e) => {
+          try {
+            onNetMsg(JSON.parse(e.data));
+          } catch (err) {}
+        };
+        pc.onconnectionstatechange = () => {
+          if (
+            pc.connectionState === "failed" ||
+            pc.connectionState === "closed"
+          )
+            handleNetDown();
+        };
+      }
+      async function directInvite() {
+        netReset();
+        net.mode = "direct";
+        net.isHost = true;
+        net.code = "DIRECTO";
+        net.myName = getName();
+        netShow(
+          '<p class="hint"><span class="spin"></span>Generando invitación…</p>',
+        );
+        try {
+          net.pc = new RTCPeerConnection(RTC_CFG);
+          net.dc = net.pc.createDataChannel("bingo");
+          wireDirect();
+          await net.pc.setLocalDescription(await net.pc.createOffer());
+          await gatheringDone(net.pc);
+          const code = b64(JSON.stringify(net.pc.localDescription));
+          $("#taOffer").value = code;
+          $("#taOffer").classList.remove("hidden");
+          $("#offerRow").classList.remove("hidden");
+          $("#taAnswerIn").value = "";
+          netShow(
+            '<p class="hint">Invitación creada · cópiala y envíala a tu rival (paso 1 → 2 → 3)</p>',
+          );
+        } catch (e) {
+          netShowErr(
+            "Tu navegador no pudo crear la invitación. Prueba con Chrome, Edge o Firefox actualizados.",
+          );
+        }
+      }
+      async function directAnswer() {
+        if (S) return;
+        const raw = $("#taOfferIn").value.trim();
+        if (!raw) {
+          netShowErr("Pega primero la invitación del anfitrión.");
+          return;
+        }
+        netReset();
+        net.mode = "direct";
+        net.isHost = false;
+        net.code = "DIRECTO";
+        net.myName = getName();
+        netShow(
+          '<p class="hint"><span class="spin"></span>Generando respuesta…</p>',
+        );
+        try {
+          const offer = JSON.parse(unb64(raw));
+          if (offer.type !== "offer") throw new Error("no es una invitación");
+          net.pc = new RTCPeerConnection(RTC_CFG);
+          net.pc.ondatachannel = (e) => {
+            net.dc = e.channel;
+            wireDirect();
+          };
+          await net.pc.setRemoteDescription(offer);
+          await net.pc.setLocalDescription(await net.pc.createAnswer());
+          await gatheringDone(net.pc);
+          const code = b64(JSON.stringify(net.pc.localDescription));
+          $("#taAnswer").value = code;
+          $("#taAnswer").classList.remove("hidden");
+          $("#answerRow").classList.remove("hidden");
+          netShow(
+            '<p class="hint">¡Listo! Envía la respuesta al anfitrión · la partida empezará cuando él la pegue</p>',
+          );
+        } catch (e) {
+          netShowErr(
+            "La invitación no es válida. Cópiala completa (es un texto largo) y vuelve a intentarlo.",
+          );
+        }
+      }
+      async function directConnect() {
+        if (S) return;
+        const raw = $("#taAnswerIn").value.trim();
+        if (!raw) {
+          netShowErr("Pega primero la respuesta de tu rival.");
+          return;
+        }
+        if (net.mode !== "direct" || !net.pc || !net.isHost) {
+          netShowErr("Primero crea una invitación (paso 1).");
+          return;
+        }
+        netShow('<p class="hint"><span class="spin"></span>Conectando…</p>');
+        try {
+          const answer = JSON.parse(unb64(raw));
+          if (answer.type !== "answer") throw new Error("no es una respuesta");
+          await net.pc.setRemoteDescription(answer);
+          net.watchTimer = setTimeout(() => {
+            if (!net.connected)
+              netShowErr(
+                "No se pudo conectar. Genera una invitación nueva y repite los 3 pasos.",
+              );
+          }, 12000);
+        } catch (e) {
+          netShowErr(
+            "La respuesta no es válida. Cópiala completa y vuelve a intentarlo.",
+          );
+        }
       }
 
       /* ================= VICTORIA ================= */
@@ -2308,77 +2755,6 @@
         $("#lobby").classList.remove("hidden");
       }
 
-      /* ================= LOBBY: ESTADO DE RED ================= */
-      function getName() {
-        return $("#nameOnline").value.trim() || "Jugador";
-      }
-      function netShow(html, err) {
-        const el = $("#netStatus");
-        el.classList.remove("hidden");
-        el.classList.toggle("err", !!err);
-        el.innerHTML = html;
-        lucide.createIcons();
-      }
-      function netShowErr(t) {
-        netShow('<p class="hint" style="color:var(--red)">' + t + "</p>", true);
-      }
-      function netShowReady() {
-        netShow(
-          '<p class="hint"><span class="spin"></span>¡Rival conectado! Repartiendo cartones…</p>',
-        );
-      }
-      function netShowWaiting() {
-        const share = currentShareUrl();
-        netShow(`
-    <p class="hint">Comparte esta sala con tu rival</p>
-    <div class="bigcode">${net.code}</div>
-    <div class="copyrow">
-      <button class="copybtn" id="copyCodeBtn"><i data-lucide="copy"></i> Copiar código</button>
-      ${share ? '<button class="copybtn" id="copyLinkBtn"><i data-lucide="link"></i> Copiar enlace</button>' : ""}
-    </div>
-    <p class="hint" style="margin-top:8px"><span class="spin"></span>Esperando al rival…</p>`);
-        $("#copyCodeBtn").onclick = () => copyText(net.code, $("#copyCodeBtn"));
-        const lb = $("#copyLinkBtn");
-        if (lb) lb.onclick = () => copyText(share, lb);
-      }
-      function currentShareUrl() {
-        if (!/^https?:$/.test(location.protocol)) return null; // en file:// solo hay código
-        return location.origin + location.pathname + "#sala=" + net.code;
-      }
-      function copyText(text, btn) {
-        const done = () => {
-          const old = btn.innerHTML;
-          btn.innerHTML = '<i data-lucide="check"></i> Copiado';
-          lucide.createIcons();
-          setTimeout(() => {
-            btn.innerHTML = old;
-            lucide.createIcons();
-          }, 1400);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard
-            .writeText(text)
-            .then(done)
-            .catch(() => {
-              fallbackCopy(text);
-              done();
-            });
-        } else {
-          fallbackCopy(text);
-          done();
-        }
-      }
-      function fallbackCopy(t) {
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand("copy");
-        } catch (e) {}
-        ta.remove();
-      }
-
       /* ================= LOBBY: INTERACCIONES ================= */
       function selectMode(mode) {
         sClick();
@@ -2391,8 +2767,23 @@
           $("#netStatus").classList.add("hidden");
         }
       }
+      function selectNetSub(sub) {
+        sClick();
+        [...$("#segNet").children].forEach((b) =>
+          b.classList.toggle("on", b.dataset.n === sub),
+        );
+        $("#autoPanel").classList.toggle("hidden", sub !== "auto");
+        $("#directPanel").classList.toggle("hidden", sub !== "direct");
+        netReset();
+        $("#netStatus").classList.add("hidden");
+      }
       $("#tkCpu").addEventListener("click", () => selectMode("cpu"));
       $("#tkNet").addEventListener("click", () => selectMode("net"));
+      $("#segNet").addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        selectNetSub(b.dataset.n);
+      });
 
       $("#segDiff").addEventListener("click", (e) => {
         const b = e.target.closest("button");
@@ -2435,13 +2826,33 @@
         showRules();
       });
 
-      /* enlace de invitación: #sala=XXXX prellena el código */
+      /* modo directo */
+      $("#btnInvite").addEventListener("click", () => {
+        sClick();
+        directInvite();
+      });
+      $("#btnCopyOffer").addEventListener("click", () =>
+        copyText($("#taOffer").value, $("#btnCopyOffer")),
+      );
+      $("#btnAnswer").addEventListener("click", () => {
+        sClick();
+        directAnswer();
+      });
+      $("#btnCopyAnswer").addEventListener("click", () =>
+        copyText($("#taAnswer").value, $("#btnCopyAnswer")),
+      );
+      $("#btnConnect").addEventListener("click", () => {
+        sClick();
+        directConnect();
+      });
+
+      /* enlace de invitación: #sala=XXXX prellena el código (modo automático) */
       const mHash = location.hash.match(/sala=([A-Za-z0-9]{4})/);
       if (mHash) {
         selectMode("net");
         $("#codeInput").value = mHash[1].toUpperCase();
         netShow(
-          '<p class="hint">Sala cargada desde el enlace · pon tu nombre y pulsa <b>Unirse</b>.</p>',
+          '<p class="hint">Sala cargada desde el enlace · pon tu nombre y pulsa <b>Unirse</b>. Si no conecta, usa el modo Directo.</p>',
         );
       }
 
