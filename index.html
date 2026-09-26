@@ -1997,10 +1997,57 @@
           }
         }, 9000);
       }
+      function joinRoom() {
+        if (!hasNet) {
+          netShowErr(
+            "El módulo de red no cargó. Revisa tu conexión a internet.",
+          );
+          return;
+        }
+        const code = $("#codeInput").value.trim().toUpperCase();
+        if (code.length !== 4) {
+          netShowErr("El código de sala tiene 4 caracteres.");
+          return;
+        }
+        netReset();
+        net.isHost = false;
+        net.myName = getName();
+        netShowJoining(code);
+        net.peer = new Peer(undefined, {
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+            ],
+          },
+        });
+        const tok = ++hostAttempts;
+        net.peer.on("open", () => {
+          if (tok !== hostAttempts) return;
+          net.myCard = buildCard();
+          const c = net.peer.connect(pid(code), { reliable: true });
+          bindConn(c);
+          c.on("open", () => {
+            if (tok !== hostAttempts) return;
+            netSend({ t: "hello", name: net.myName, card: net.myCard });
+            netShowReady();
+          });
+        });
+        net.peer.on("disconnected", () => {
+          try {
+            net.peer.reconnect();
+          } catch (e) {}
+        });
+        net.peer.on("error", handlePeerErr);
+        setTimeout(() => {
+          if (tok === hostAttempts && !net.connected)
+            netShowErr("No se pudo conectar. Verifica el código.");
+        }, 9000);
+      }
       function handlePeerErr(e) {
         const t = (e && e.type) || "";
         if (net.connected) return; // ya jugando: el canal de datos sigue vivo
-        if (t === "unavailable-id" && net.isHost && hostAttempts < 2) {
+        if (t === "unavailable-id" && net.isHost && hostAttempts < 4) {
           hostAttempts++;
           createRoom(); // código raro repetido: reintentar con otro
           return;
