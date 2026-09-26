@@ -1884,6 +1884,27 @@
 
       /* ================= RED (PeerJS · sala por código) ================= */
       const hasNet = typeof Peer !== "undefined";
+      // STUN para el caso simple + TURN (relay) como respaldo cuando el NAT/wifi
+      // bloquea la conexión directa (común en algunos routers domésticos).
+      const ICE_SERVERS = [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+      ];
       const CODE_AB = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       function genCode() {
         let s = "";
@@ -1921,13 +1942,24 @@
 
       function bindConn(c) {
         net.conn = c;
-        net.connected = true;
         let down = false;
         const die = () => {
           if (net.conn !== c || down) return;
           down = true;
+          const wasConnected = net.connected;
+          net.connected = false;
+          if (!wasConnected) {
+            // nunca llegó a abrir de verdad: es un fallo de conexión, no una desconexión en partida
+            netShowErr(
+              "No se pudo establecer la conexión (falló el enlace P2P). Intenta de nuevo; si persiste, puede que la red bloquee conexiones directas.",
+            );
+            return;
+          }
           handleNetDown();
         };
+        c.on("open", () => {
+          if (net.conn === c) net.connected = true;
+        });
         c.on("data", onNetMsg);
         c.on("close", die);
         c.on("error", die);
@@ -1961,12 +1993,7 @@
         net.code = genCode();
         netShowCreating();
         net.peer = new Peer(pid(net.code), {
-          config: {
-            iceServers: [
-              { urls: "stun:stun.l.google.com:19302" },
-              { urls: "stun:stun1.l.google.com:19302" },
-            ],
-          },
+          config: { iceServers: ICE_SERVERS },
         });
         const tok = ++hostAttempts;
         net.peer.on("open", () => {
@@ -2014,12 +2041,7 @@
         net.myName = getName();
         netShowJoining(code);
         net.peer = new Peer(undefined, {
-          config: {
-            iceServers: [
-              { urls: "stun:stun.l.google.com:19302" },
-              { urls: "stun:stun1.l.google.com:19302" },
-            ],
-          },
+          config: { iceServers: ICE_SERVERS },
         });
         const tok = ++hostAttempts;
         net.peer.on("open", () => {
